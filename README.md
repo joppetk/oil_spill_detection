@@ -35,4 +35,18 @@ oil-spill-detection/
 │   └── U-Net+Densenet201.ipynb
 ├── README.md
 ├── demo.ipynb               # Quick demo / visualization
+```
 
+## Acknowledgments / References
+
+**Dataset:** Zenodo
+
+**Links:**
+- https://doi.org/10.5281/zenodo.8346860
+- https://doi.org/10.5281/zenodo.8253899
+- https://doi.org/10.5281/zenodo.13761290
+
+## Contact
+
+Joppet Karlo Quinones – <joppetk_q@yahoo.com> – feel free to reach out!  
+Project Link: https://github.com/joppetk/oil_spill_detection
