@@ -13,8 +13,8 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 ## ✨ Features
 
 - Semantic segmentation / object detection / binary classification of oil spills
-- Trained on <Sentinel-1 SAR / custom dataset / public dataset like ...>
-- <State-of-the-art> performance: mIoU = <xx.x>% / F1-score = <xx.x>% on test set
+- Trained on <Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills>
+- Model performance: mIoU = 71.13% / F1-score = 80.42% on test set
 - Inference in <real-time / <X> seconds per image> on <GPU / CPU>
 - Pre-processing pipeline for SAR imagery (speckle filtering, normalization, etc.)
 - Incident management
