@@ -69,7 +69,7 @@ conda activate oil-spill
 
 ## Acknowledgments / References
 
-**Dataset:** Zenodo
+**Dataset:** R. Trujillo-Acatitla, J. Tuxpan-Vargas, C. Ovando-Vázquezand E. Monterrubio-Martínez, “Sentinel-1 SAR Oil spill image dataset for train, validate, and test deep learning models.
 
 **Links:**
 - https://doi.org/10.5281/zenodo.8346860
