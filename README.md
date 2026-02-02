@@ -37,6 +37,36 @@ oil-spill-detection/
 ├── demo.ipynb               # Quick demo / visualization
 ```
 
+## Getting Started
+
+### Prerequisites
+
+- Python ≥ 3.9
+- GPU recommended (NVIDIA with ≥8 GB VRAM for training)
+
+### Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/joppetk/oil_spill_detection.git
+   cd oil_spill_detection
+
+2. **Create virtual environment (choose one)**
+
+Using venv (recommended)  
+ ```bash
+python -m venv venv
+source venv/bin/activate    # Linux / macOS
+venv\Scripts\activate       # Windows
+```
+
+Or using conda  
+ ```bash
+conda env create -f environment.yml
+conda activate oil-spill
+```
+
 ## Acknowledgments / References
 
 **Dataset:** Zenodo
