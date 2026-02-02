@@ -12,13 +12,19 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 
 ## ✨ Features
 
-- Semantic segmentation / object detection / binary classification of oil spills
+- Operator web user interface with area of interest (AOI) selection and interactive map
+- SAR scene discovery and download management via ASF API
+- SNAP-based preprocessing automation (Apply-Orbit-File, Thermal Noise Removal, GRD Border Noise Removal, Calibration, Speckle Filter, Terrain Correction, Linear to dB)
+- Model inference execution and visualization overlays
+- Incident creation, lifecycle tracking, and audit logs
+- Response planning and UAV tasking controls
+- Live video monitoring and telemetry panels via WebRTC
+
+### Model Overview
 - Trained on Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills
 - Model performance: mIoU = 71.13% / F1-score = 80.42% on test set
 - Inference in <real-time / <X> seconds per image> on <GPU / CPU>
-- Pre-processing pipeline for SAR imagery using SNAP (Apply-Orbit-File, Thermal Noise Removal, GRD Border Noise Removal, Calibration, Speckle Filter, Terrain Correction, Linear to dB)
-- Incident management
-- Integrated drone response (simulated)
+
 
 ## Project Structure
 
