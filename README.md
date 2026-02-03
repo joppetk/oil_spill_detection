@@ -22,7 +22,7 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 
 ### Model Overview
 - Trained on Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills
-- Model performance: mIoU = 71.13% / F1-score = 80.42% on test set
+- Model performance on 150 test sets: mIoU = 71.13% / F1-score = 80.42%
 - Inference in <real-time / <X> seconds per image> on <GPU / CPU>
 
 
@@ -69,7 +69,7 @@ venv\Scripts\activate       # Windows
 
 Or using conda  
  ```bash
-conda env create -f environment.yml
+conda create --name oil-spill python=3.9
 conda activate oil-spill
 ```
 
