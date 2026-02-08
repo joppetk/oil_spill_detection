@@ -73,6 +73,14 @@ conda create --name oil-spill python=3.9
 conda activate oil-spill
 ```
 
+3. **Run the server**
+
+ ```bash
+nodemon .\server.js
+```
+
+4. 
+
 ## Acknowledgments / References
 
 **Dataset:** R. Trujillo-Acatitla, J. Tuxpan-Vargas, C. Ovando-Vázquezand E. Monterrubio-Martínez, “Sentinel-1 SAR Oil spill image dataset for train, validate, and test deep learning models.
