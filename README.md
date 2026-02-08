@@ -73,13 +73,21 @@ conda create --name oil-spill python=3.9
 conda activate oil-spill
 ```
 
-3. **Run the server**
+3. **Navigate the where server.js is located and run npm install**
 
  ```bash
+npm install
+
+```
+
+4. **Run the server**
+
+ ```bash
+
 nodemon .\server.js
 ```
 
-4. **Run the application from web browser**
+5. **Run the application from web browser**
 
 ```bash
 https://<your-server-ipaddress>:8181/operator.html
