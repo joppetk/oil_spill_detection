@@ -55,7 +55,7 @@ oil-spill-detection/
 
 ### Needed softwares
 
-- ESA SNAP (https://step.esa.int/main/download/snap-download/)
+- ESA SNAP version 12.0.0 (https://download.esa.int/step/snap/12.0/installers/esa-snap_all_windows-12.0.0.exe)
 
 ### Needed credentials
 
