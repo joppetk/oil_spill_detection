@@ -13,6 +13,7 @@ LIMIT = int(os.getenv("ASF_LIMIT", "3"))      # max new downloads per scan
 DAYS  = int(os.getenv("ASF_DAYS",  "7"))      # lookback window in days
 EDL_USER = os.getenv("EDL_USER")              # optional; if omitted, _netrc is used
 EDL_PASS = os.getenv("EDL_PASS")              # optional
+EDL_TOKEN="YOUR-TOKEN-HERE"
 EDL_TOKEN="eyJ0eXAiOiJKV1QiLCJvcmlnaW4iOiJFYXJ0aGRhdGEgTG9naW4iLCJzaWciOiJlZGxqd3RwdWJrZXlfb3BzIiwiYWxnIjoiUlMyNTYifQ.eyJ0eXBlIjoiVXNlciIsInVpZCI6ImpvcHBldC5xdWlub25lcyIsImV4cCI6MTc3MzMzMDUwNywiaWF0IjoxNzY4MTQ2NTA3LCJpc3MiOiJodHRwczovL3Vycy5lYXJ0aGRhdGEubmFzYS5nb3YiLCJpZGVudGl0eV9wcm92aWRlciI6ImVkbF9vcHMiLCJhY3IiOiJlZGwiLCJhc3N1cmFuY2VfbGV2ZWwiOjN9.Dn7KzG-bpUhfuqffZHhT82ZpthrcanD-FkXSnGI1f8g-mbaEkQOOQHdJ7pXosRRCXPxh4WLTXCPHV8bWBXw5VpgUStaKcwUZUGtnsoWyPKsDw7Ae6xzYfLy5vQhBVjf6eCobbdxaXKm2z_yKSUd2uKapuNRcmxcYZo_KcOdz2MpqodgSuVf5vasDN_3lxc5ClgA4r_jAkIK6GewMLlwwjFWYqYiFTuOEhN-ogZ5_i4R1ed-lfMn6ruqfSONalfO5jI3yaomz0KkmmwM-Xbc92gXHfpmiroTSVlZd7YRjC6xA7Wvu7QmdR8bFmsItwWQKOJvUxAkbyIPYU5yV8eEDNQ"
 #Expires at:  12- 3-2026 9:48pm EST
 
@@ -20,13 +21,7 @@ EDL_TOKEN="eyJ0eXAiOiJKV1QiLCJvcmlnaW4iOiJFYXJ0aGRhdGEgTG9naW4iLCJzaWciOiJlZGxqd
 def mk_session():
     # Use ASFSession so auth flows match asf_search expectations.
     sess = asf.ASFSession()
-    # If you use _netrc, skip explicit creds; otherwise allow env creds.
-    #if EDL_USER and EDL_PASS:
-        #sess = sess.auth_with_creds("joppet.quinones", "Jkee555333asf#")
-        #sess = sess.auth_with_creds("joppet.quinones", "")
-    # Harden with retries/backoff
-    #sess = asf.ASFSession().auth_with_creds("joppet.quinones", "Jkee555333asf#")
-    #sess = asf.ASFSession().auth_with_creds("joppet.quinones", "")
+    
 
     sess = asf.ASFSession().auth_with_token(EDL_TOKEN)
     retries = Retry(
@@ -136,3 +131,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
