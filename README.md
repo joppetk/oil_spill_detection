@@ -60,7 +60,7 @@ oil-spill-detection/
 
 ### Needed credentials
 
-- ASF Search credentials
+- ASF Search credentials (paste it as EDL_TOKEN at scan_download.py)
 
 ### Installation (Windows)
 
