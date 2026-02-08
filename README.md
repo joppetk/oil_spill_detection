@@ -79,7 +79,13 @@ conda activate oil-spill
 nodemon .\server.js
 ```
 
-4. 
+4. **Run the application from web browser**
+
+```bash
+https://<your-server-ipaddress>:8181/operator.html
+```
+
+5. 
 
 ## Acknowledgments / References
 
