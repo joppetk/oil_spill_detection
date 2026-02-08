@@ -34,6 +34,9 @@ oil-spill-detection/
 │   ├── server/
 │   └── client/
 │   └── python-poller/
+│   └── certs/      
+        ├── cert.key
+        └── cert.pem
 ├── oil_spill_db/
 ├── companion_computer/
 ├── notebooks/               # Model training experiments
