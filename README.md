@@ -35,14 +35,15 @@ oil-spill-detection/
 │   └── client/
 │   └── python-poller/
 │   └── certs/      
-        ├── cert.key
-        └── cert.pem
+│       ├── cert.key
+│       └── cert.pem
 ├── oil_spill_db/
 ├── companion_computer/
 ├── notebooks/               # Model training experiments
 │   └── deepLabV3+resnet101.ipynb
 │   └── U-Net+Densenet201.ipynb
 ├── README.md
+├── requirements.txt
 ├── demo.ipynb               # Quick demo / visualization
 ```
 
