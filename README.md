@@ -83,7 +83,13 @@ npm install
 
 ```
 
-4. **Run the server**
+4. **Install python libraries on the same environment**
+
+```bash
+pip install -r requirements.txt
+```
+
+6. **Run the server**
 
  ```bash
 
