@@ -53,6 +53,10 @@ oil-spill-detection/
 - Python ≥ 3.9
 - GPU recommended (NVIDIA with ≥8 GB VRAM for training)
 
+### Needed softwares
+
+- ESA SNAP (https://step.esa.int/main/download/snap-download/)
+
 ### Needed credentials
 
 - ASF Search credentials
