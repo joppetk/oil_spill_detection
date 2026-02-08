@@ -53,7 +53,7 @@ oil-spill-detection/
 - Python ≥ 3.9
 - GPU recommended (NVIDIA with ≥8 GB VRAM for training)
 
-### Installation
+### Installation (Windows)
 
 1. **Clone the repository**
 
