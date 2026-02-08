@@ -53,6 +53,10 @@ oil-spill-detection/
 - Python ≥ 3.9
 - GPU recommended (NVIDIA with ≥8 GB VRAM for training)
 
+### Needed credentials
+
+- ASF Search credentials
+
 ### Installation (Windows)
 
 1. **Clone the repository**
