@@ -33,6 +33,10 @@ oil-spill-detection/
 ├── oil_spill_detection/                    
 │   ├── server/
 │   └── client/
+│       ├── operator.html
+│       ├── operator.js
+│       ├── pi.html
+│       ├── pi.js
 │   └── python-poller/
 │       ├── data/
 │       ├── snap-graphs/
