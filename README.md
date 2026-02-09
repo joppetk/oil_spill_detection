@@ -113,7 +113,7 @@ pip install -r requirements.txt
 nodemon .\server.js
 ```
 
-5. **Run the application from web browser**
+5. **Open the application in your web browser**
 
 ```bash
 https://<your-server-ipaddress>:8181/operator.html
