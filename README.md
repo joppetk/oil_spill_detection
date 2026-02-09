@@ -54,13 +54,21 @@ oil-spill-detection/
 - Python ≥ 3.9
 - GPU recommended (NVIDIA with ≥8 GB VRAM for training)
 
-### Needed softwares
+### Required Software
 
-- ESA SNAP version 12.0.0 (https://download.esa.int/step/snap/12.0/installers/esa-snap_all_windows-12.0.0.exe)
+- **ESA SNAP 12.0.0**  
+  Download: https://download.esa.int/step/snap/12.0/installers/esa-snap_all_windows-12.0.0.exe
 
-### Needed credentials
+### Required Credentials
 
-- ASF Search credentials (paste it as EDL_TOKEN at scan_download.py)
+1. Create an account at the NASA Earthdata portal:  
+   https://urs.earthdata.nasa.gov/home
+
+2. Generate an Earthdata Login (EDL) token from your account settings.
+
+3. Use this token as your ASF Search credential.  
+   Paste the generated token into the `EDL_TOKEN` variable inside `scan_download.py`.
+
 
 ### Installation (Windows)
 
