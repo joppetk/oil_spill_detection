@@ -34,6 +34,16 @@ oil-spill-detection/
 │   ├── server/
 │   └── client/
 │   └── python-poller/
+│       ├── data/
+│       ├── snap-graphs/
+│           ├── best_model.pt
+│           └── GraphSebset2.xml
+│       ├── weights/
+│           └── infer_config.json
+│       ├── infer_latest.py
+│       ├── infer_utils.py
+│       ├── run_gpt_once.py
+│       └── scan_download.py
 │   └── certs/      
 │       ├── cert.key
 │       └── cert.pem
