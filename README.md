@@ -130,6 +130,14 @@ https://<your-server-ipaddress>:8181/operator.html
 - https://doi.org/10.5281/zenodo.8253899
 - https://doi.org/10.5281/zenodo.13761290
 
+
+**Software / Tools:**  
+This work makes use of the **ESA Sentinel Application Platform (SNAP)**, developed by  
+**the European Space Agency (ESA)** and **Brockmann Consult GmbH**.  
+Learn more at: https://step.esa.int/main/toolboxes/snap/
+``
+
+
 ## Contact
 
 Joppet Karlo Quinones – <joppetk_q@yahoo.com> – feel free to reach out!  
