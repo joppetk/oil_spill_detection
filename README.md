@@ -56,9 +56,16 @@ oil-spill-detection/
 │       ├── cert.key
 │       └── cert.pem
 ├── oil_spill_db/
+│   ├── ne_10m_coastline/
+│   ├── api.py
+│   ├── db.py
+│   ├── ims_ops.py
+│   └── sensitive_areas.py
 ├── companion_computer/
+│   ├── px4_ops.py
+│   └── service2.py
 ├── notebooks/               # Model training experiments
-│   └── deepLabV3+resnet101.ipynb
+│   ├── deepLabV3+resnet101.ipynb
 │   └── U-Net+Densenet201.ipynb
 ├── README.md
 ├── requirements.txt
