@@ -32,11 +32,15 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 oil-spill-detection/
 ├── oil_spill_detection/                    
 │   ├── server/
+│       ├── server.js
+│       ├── scheduler.js
+│       ├── rtc.js
+│       └── package.json
 │   └── client/
 │       ├── operator.html
 │       ├── operator.js
 │       ├── pi.html
-│       ├── pi.js
+│       └── pi.js
 │   └── python-poller/
 │       ├── data/
 │       ├── snap-graphs/
