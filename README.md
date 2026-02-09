@@ -37,7 +37,7 @@ oil-spill-detection/
 │       ├── data/
 │       ├── snap-graphs/
 │           ├── best_model.pt
-│           └── GraphSebset2.xml
+│           └── GraphSubset2.xml
 │       ├── weights/
 │           └── infer_config.json
 │       ├── infer_latest.py
