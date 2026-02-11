@@ -3,7 +3,8 @@
 <p align="center">
   <img src="images/UI-1.jpg" alt="Demo" width="800"/>
   <br>
-  <em>Example: Detected oil spill segmentation overlay on Sentinel-1 SAR image</em>
+  <em>Operator user interface</em>
+  #<em>Example: Detected oil spill segmentation overlay on Sentinel-1 SAR image</em>
 </p>
 
 State brief objectives here>.
