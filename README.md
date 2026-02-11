@@ -1,7 +1,7 @@
 # Integrated System for Oil Spill Detection and Mitigation Leveraging Sentinel-1 SAR Imagery, Deep Learning, and WebRTC Communication Protocol
 
 <p align="center">
-  <img src="https://<your-image-link-or-relative-path>/demo.gif" alt="Demo" width="800"/>
+  <img src="images/UI-1.jpg" alt="Demo" width="800"/>
   <br>
   <em>Example: Detected oil spill segmentation overlay on Sentinel-1 SAR image</em>
 </p>
