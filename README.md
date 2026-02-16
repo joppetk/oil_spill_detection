@@ -27,7 +27,7 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 - Inference in <real-time / <X> seconds per image> on <GPU / CPU>
 
 ## Models link
-  U-Net + Densenet201: https://drive.google.com/file/d/1ktmrBPq3buC-MpcDYv15L3GoCqkNHRzh/view?usp=drive_link
+  U-Net + Densenet201: https://drive.google.com/file/d/1ktmrBPq3buC-MpcDYv15L3GoCqkNHRzh/view?usp=drive_link  
   DeepLabV3 + Resnet101: https://drive.google.com/file/d/1rSZWQ5doakFCwIP0Z2kunUzwfogrA12-/view?usp=drive_link
   
 ## Project Structure
