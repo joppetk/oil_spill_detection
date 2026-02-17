@@ -59,7 +59,6 @@ oil-spill-detection/
 │   └── python-poller/
 │       ├── data/
 │       ├── snap-graphs/
-│           ├── best_model.pt
 │           └── GraphSubset2.xml
 │       ├── weights/
 │           ├── deeplabv3_resnet101_oil_fold5_continued_best.pt
