@@ -62,6 +62,8 @@ oil-spill-detection/
 │           ├── best_model.pt
 │           └── GraphSubset2.xml
 │       ├── weights/
+│           ├── deeplabv3_resnet101_oil_fold5_continued_best.pt
+│           ├── unet_densenet201_oil_fold5_ft_best.pt
 │           └── infer_config.json
 │       ├── infer_latest.py
 │       ├── infer_utils.py
