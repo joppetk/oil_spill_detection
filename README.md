@@ -26,7 +26,7 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 - Model performance on 150 test sets: mIoU = 71.13% / F1-score = 80.42%
 - Inference in <real-time / <X> seconds per image> on <GPU / CPU>
 
-## Models link
+## Trained Weights
   U-Net + Densenet201: https://drive.google.com/file/d/1ktmrBPq3buC-MpcDYv15L3GoCqkNHRzh/view?usp=drive_link  
   DeepLabV3 + Resnet101: https://drive.google.com/file/d/1rSZWQ5doakFCwIP0Z2kunUzwfogrA12-/view?usp=drive_link
   
