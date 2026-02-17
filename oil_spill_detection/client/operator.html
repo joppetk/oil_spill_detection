@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Operations Console — Pro</title>
+  <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet"/>
+  <style>
+    /* =====================================================
+       Ops Console — Pro UI Kit (single-file)
+       - Pixel-perfect dark/light design
+       - Preserves your existing IDs so operator.js keeps working
+       - Removes inline styles; introduces tokens & components
+       ===================================================== */
+
+    /* ---------- Design tokens ---------- */
+    :root {
+      /* Spacing */
+      --space-1: 4px;  --space-2: 8px;  --space-3: 12px;  --space-4: 16px;
+      --space-5: 20px; --space-6: 24px; --space-8: 32px;  --space-10: 40px;
+
+      /* Radii */
+      --r-xs: 6px; --r-sm: 10px; --r-md: 12px; --r-lg: 16px; --r-xl: 20px; --r-2xl: 24px;
+
+      /* Shadows */
+      --shadow-1: 0 1px 2px rgba(0,0,0,.25);
+      --shadow-2: 0 6px 20px rgba(0,0,0,.30);
+
+      /* Layout */
+      --side: 360px; /* right column */
+      --container-w: 1280px;
+
+      /* Typography */
+      --font-sans: ui-sans-serif, system-ui, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-15: 15px; --fs-16: 16px; --fs-18: 18px; --fs-20: 20px;
+
+      /* Z */
+      --z-topbar: 50; --z-modal: 1000; --z-overlay: 900;
+    }
+
+    /* Dark theme (default) */
+    :root, [data-theme="dark"] {
+      --bg: hsl(222 60% 6%);
+      --bg-elev: hsl(222 52% 9%);
+      --panel: hsl(222 48% 11%);
+      --panel-2: hsl(222 44% 13%);
+      --border: hsl(222 38% 20%);
+      --text: hsl(218 100% 96%);
+      --muted: hsl(217 35% 75%);
+      --muted-2: hsl(217 25% 65%);
+      --accent: hsl(204 100% 55%);
+      --accent-2: hsl(204 100% 63%);
+      --good: hsl(158 65% 45%);
+      --warn: hsl(18 90% 55%);
+      --bad:  hsl(352 85% 58%);
+      --ring: 210 100% 65%; /* used in focus ring */
+    }
+
+    /* Light theme override */
+    [data-theme="light"] {
+      --bg: hsl(210 22% 98%);
+      --bg-elev: #fff;
+      --panel: hsl(210 25% 97%);
+      --panel-2: hsl(210 20% 95%);
+      --border: hsl(210 16% 86%);
+      --text: hsl(224 16% 12%);
+      --muted: hsl(223 10% 38%);
+      --muted-2: hsl(223 8% 46%);
+      --accent: hsl(222 85% 56%);
+      --accent-2: hsl(222 85% 62%);
+      --good: hsl(158 52% 36%);
+      --warn: hsl(24 92% 48%);
+      --bad:  hsl(355 76% 48%);
+      --ring: 222 85% 56%;
+    }
+
+    @media (prefers-reduced-motion:no-preference){
+      :root{ scroll-behavior: smooth; }
+    }
+
+    /* ---------- Base ---------- */
+    *{ box-sizing:border-box }
+    html,body{ height:100% }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 1200px at 20% -10%, rgba(46,167,255,.10), transparent 50%),
+                  linear-gradient(180deg, var(--bg), color-mix(in oklab, var(--bg), #000 10%));
+      color: var(--text);
+      font: 15px/1.5 var(--font-sans);
+      letter-spacing: .2px;
+    }
+    a{ color: var(--accent); text-decoration: none; }
+    a:hover{ text-decoration: underline; }
+
+    .container{ max-width: var(--container-w); margin: 0 auto; padding: 0 var(--space-4); }
+
+    /* ---------- Topbar ---------- */
+    .topbar{
+      position: sticky; top: 0; z-index: var(--z-topbar);
+      backdrop-filter: saturate(1.2) blur(8px);
+      background: color-mix(in oklab, var(--bg-elev), transparent 20%);
+      border-bottom: 1px solid var(--border);
+    }
+    .topbar-inner{ display:flex; align-items:center; justify-content:space-between; height:56px; }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:.3px; }
+    .brand-badge{ display:inline-grid; place-items:center; width:28px; height:28px; border-radius:8px; background:linear-gradient(135deg,var(--accent),var(--accent-2)); color:white; font-weight:800; }
+    #status{ display:flex; align-items:center; gap:8px; font-size: var(--fs-13); color: var(--muted); }
+    .dot{ width:10px; height:10px; border-radius:50%; background: var(--warn); box-shadow:0 0 0 4px color-mix(in oklab, var(--warn), transparent 80%); }
+    .dot.ok{ background: var(--good); box-shadow:0 0 0 4px color-mix(in oklab, var(--good), transparent 80%); }
+
+    /* ---------- Tabs ---------- */
+    .tabs{ display:flex; gap:4px; border-bottom:1px solid var(--border); background: color-mix(in oklab, var(--bg-elev), transparent 10%); }
+    .tabs-inner{ display:flex; gap:2px; overflow:auto; scrollbar-width:none; }
+    .tab{ position:relative; appearance:none; border:0; background:transparent; color:var(--muted); font-weight:600; padding:12px 14px; border-radius:10px; cursor:pointer; }
+    .tab:hover{ color:var(--text); background: color-mix(in oklab, var(--panel), transparent 50%); }
+    .tab.active{ color:var(--text); }
+    .tab.active::after{ content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:2px; background: linear-gradient(90deg, var(--accent), var(--accent-2)); border-radius:2px; }
+
+    /* ---------- Layouts ---------- */
+    main{ padding: var(--space-4); }
+    .tabpanel{ display:none; }
+    .tabpanel.active{ display:block; }
+
+    .maplayout{ display:grid; grid-template-columns: 1fr var(--side); gap: var(--space-4); height: calc(100vh - 132px); }
+    #map{ width:100%; height:100%; border-radius: var(--r-lg); overflow:hidden; border:1px solid var(--border); box-shadow: var(--shadow-1); }
+    .side{ background: var(--panel); border:1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-4); overflow:auto; box-shadow: var(--shadow-1); }
+
+    /* ---------- Cards / Panels ---------- */
+    .card{ background: var(--panel-2); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--shadow-1); }
+    .card + .card{ margin-top: var(--space-4); }
+    .card-header{ display:flex; align-items:center; justify-content:space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom:1px solid var(--border); font-weight:700; }
+    .card-body{ padding: var(--space-4); display:grid; gap: var(--space-3); }
+    .panel{ background: var(--panel); border:1px dashed var(--border); border-radius: var(--r-md); padding: var(--space-3); }
+    .panel-title{ font-weight:700; margin-bottom: var(--space-2); color: var(--muted); }
+
+    /* ---------- Utilities ---------- */
+    .row{ display:flex; gap: var(--space-2); align-items:center; flex-wrap:wrap; }
+    .col{ display:grid; gap: var(--space-2); }
+    .muted{ color: var(--muted); }
+    .right{ display:flex; justify-content:flex-end; }
+    .spacer{ height: var(--space-4); }
+
+    /* ---------- Forms, Inputs ---------- */
+    label{ font-size: var(--fs-13); color: var(--muted-2); }
+    input, select, textarea{ width:100%; padding: 10px 12px; border-radius: var(--r-sm); border:1px solid var(--border); background: color-mix(in oklab, var(--panel-2), #000 2%); color: var(--text); font: inherit; outline: none; box-shadow: inset 0 1px 0 rgba(255,255,255,.02); }
+    textarea{ resize: vertical; min-height: 90px; }
+    input:focus, select:focus, textarea:focus{ border-color: color-mix(in oklab, var(--accent), #fff 10%); box-shadow: 0 0 0 3px hsl(var(--ring) / .25); }
+    ::placeholder{ color: color-mix(in oklab, var(--muted), #fff 5%); }
+    :disabled{ opacity:.7; cursor:not-allowed; }
+
+    /* ---------- Buttons ---------- */
+    .btn{ --btn-bg: color-mix(in oklab, var(--panel-2), #000 4%); --btn-bd: var(--border); --btn-fg: var(--text);
+          display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius: var(--r-sm); border:1px solid var(--btn-bd); background: var(--btn-bg); color: var(--btn-fg); cursor:pointer; font-weight:600; box-shadow: var(--shadow-1); }
+    .btn:hover{ filter: brightness(1.05); }
+    .btn:focus-visible{ outline:none; box-shadow: 0 0 0 3px hsl(var(--ring) / .35); }
+    .btn:active{ transform: translateY(0.5px); }
+    .btn-sm{ padding:8px 10px; font-size: var(--fs-13); }
+    .btn-primary{ --btn-bg: linear-gradient(180deg, var(--accent), var(--accent-2)); --btn-bd: color-mix(in oklab, var(--accent), #000 15%); --btn-fg: #fff; }
+    .btn-secondary{ --btn-bg: color-mix(in oklab, var(--panel-2), #fff 8%); }
+    .btn-ghost{ --btn-bg: transparent; --btn-bd: var(--border); }
+    .btn-warn{ --btn-bg: var(--warn); --btn-bd: color-mix(in oklab, var(--warn), #000 20%); --btn-fg:#fff; }
+
+    /* ---------- Tables ---------- */
+    .table{ width:100%; border-collapse: collapse; background: var(--panel); border:1px solid var(--border); border-radius: var(--r-lg); overflow:hidden; box-shadow: var(--shadow-1); }
+    .table thead th{ text-align:left; font-size: var(--fs-13); letter-spacing:.3px; color: var(--muted); padding: 12px 14px; background: color-mix(in oklab, var(--panel), #000 4%); position: sticky; top:0; z-index:1; }
+    .table tbody td{ padding: 12px 14px; border-top:1px solid var(--border); }
+    .table tbody tr:hover{ background: color-mix(in oklab, var(--panel), #fff 3%); }
+
+    /* ---------- Logs & mono blocks ---------- */
+    .log{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; font-size: 12px; white-space: pre-wrap; background: var(--panel); border:1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-3); }
+    #scan-feed{ max-height:160px; overflow:auto; }
+
+    /* ---------- Cameras grid ---------- */
+    #tab-cams{ display:grid; grid-template-columns: 260px 1fr; gap: var(--space-4); height: calc(100vh - 132px); }
+    .side.left{ background: var(--panel); border:1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-4); overflow:auto; }
+    .clients{ list-style:none; margin:0; padding:0; }
+    .clients li{ padding:10px 8px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; justify-content:space-between; align-items:center; }
+    .clients li:hover{ background: color-mix(in oklab, var(--panel), #fff 3%); }
+    .clients .pill{ font-size:11px; padding:3px 8px; border-radius: 999px; border:1px solid var(--border); color: var(--muted); }
+
+    .grid{ display:grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: var(--space-3); }
+    .tile{ position:relative; background: #000; border:1px solid var(--border); border-radius: var(--r-lg); overflow:hidden; min-height:160px; box-shadow: var(--shadow-1); }
+    .tile video{ width:100%; height:100%; object-fit:cover; background:#000 }
+    .tile .overlay{ position:absolute; left:0; right:0; bottom:0; z-index: 1; pointer-events: none;  background: linear-gradient(180deg, transparent, rgba(0,0,0,.55)); padding: 8px 10px; font-size: 12px; color: #fff; display:flex; justify-content:space-between; align-items:center; }
+    .tile .controls{ position: absolute; display:flex; gap:6px; right: 8px;  bottom: 8px;z-index: 2; }
+    .tile .controls .btn{ background: rgba(0,0,0,.55); border-color: rgba(255,255,255,.2); color: #fff; font-size: 12px;  line-height: 1.2;  border-radius: var(--r-sm, 4px);  padding: 4px 8px;}
+
+    /* ---------- Modal ---------- */
+    .modal.hidden{ display:none; }
+    .modal{ position:fixed; inset:0; display:grid; place-items:center; background: rgba(0,0,0,.45); z-index: var(--z-modal); }
+    .modal-box{ width:min(640px,96vw); max-height:90vh; background: var(--bg-elev); border:1px solid var(--border); border-radius: var(--r-xl); overflow:auto; box-shadow: var(--shadow-2); }
+    .modal-box header{ display:flex; align-items:center; justify-content:space-between; padding: var(--space-4); border-bottom:1px solid var(--border); font-weight:800; }
+    .modal-box .close{ border:0; background:transparent; color:var(--muted); font-size:22px; cursor:pointer; }
+    .modal-body{ padding: var(--space-4); display:grid; gap: var(--space-3); }
+    .modal-body .row.two{ display:grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+
+    /* ---------- Response Plan ---------- */
+    #response-plan-box{ background: var(--panel); border:1px solid var(--border); border-radius: var(--r-md); inline-size: clamp(1020px, 32vw, 1200px); }
+    #response-plan-body{ padding: var(--space-3); display:grid; gap: var(--space-3); }
+    .plan-grid{ display:grid; grid-template-columns: minmax(120px, 200px) 1fr; gap: 8px 16px; align-items:start; }
+    .plan-key{ color: var(--muted-2); font-size: var(--fs-13); }
+    .plan-val{ font-weight:600; }
+    .bento{ display:flex; flex-wrap:wrap; gap: 6px; }
+    .bento .chip{ display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; background: color-mix(in oklab, var(--panel-2), #fff 6%); border:1px solid var(--border); font-size:12px; }
+
+    /* ---------- Settings grid ---------- */
+    .settings-grid{ display:grid; gap: var(--space-4); grid-template-columns: repeat(12, 1fr); }
+    fieldset{ grid-column: span 12; border:1px solid var(--border); border-radius: var(--r-lg); padding: var(--space-4); background: var(--panel); }
+    legend{ padding: 0 var(--space-2); font-weight:800; color: var(--muted); }
+    fieldset label{ display:grid; grid-template-columns: 260px 1fr; align-items:center; gap: var(--space-3); padding: 8px 0; }
+    .settings-actions{ display:flex; gap: var(--space-3); align-items:center; }
+
+    /* ---------- Timeline ---------- */
+    #inc-timeline{ list-style:none; padding-left: 0; display:grid; gap: 8px; }
+    #inc-timeline li{ display:grid; grid-template-columns: 1020px 1fr; gap: 12px; align-items:start; }
+    .badge{ display:inline-block; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid var(--border); background: color-mix(in oklab, var(--panel), #fff 4%); }
+
+    /* ---------- Helpers ---------- */
+    .hidden{ display:none !important; }
+
+    /* ---------- MapLibre tweaks ---------- */
+    .maplibregl-ctrl-group{ border-radius: 10px; overflow: hidden; border-color: var(--border); }
+    .maplibregl-ctrl button{ filter: invert(1) saturate(.9) hue-rotate(180deg); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1200px){ :root{ --side: 320px; } }
+    @media (max-width: 980px){ .maplayout{ grid-template-columns: 1fr; height: auto; } .side{ order: -1; } #tab-cams{ grid-template-columns: 1fr; height: auto; } }
+  
+    /* === Full-viewport map behavior + mobile sheet === */
+    :root { --topbar-h:56px; --tabs-h:52px; }
+    body.map-full { height: 100dvh; overflow: hidden; }
+    body.map-full main { padding: 0; }
+    body.map-full .container { max-width: none; padding: 0; }
+    body.map-full .tabs { padding-left: var(--space-4); padding-right: var(--space-4); }
+    .maplayout { height: calc(100dvh - var(--topbar-h) - var(--tabs-h)); }
+
+    #map { position: relative; }
+    .map-ui { position: absolute; right: 12px; bottom: 12px; display: none; z-index: 5; }
+    .fab { position: relative; padding: 12px 16px; border-radius: 999px; border: 1px solid var(--border); background: linear-gradient(180deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 800; box-shadow: var(--shadow-2); }
+
+    @media (pointer: coarse), (max-width: 980px) {
+      .map-ui { display: block; }
+      .maplayout { grid-template-columns: 1fr; }
+      .side { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: 100vw; max-height: 70dvh; transform: translateY(105%); transition: transform .28s ease; border-radius: 16px 16px 0 0; z-index: var(--z-overlay); padding-bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); }
+      body.side-open .side { transform: translateY(0); }
+      .sheet-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: calc(var(--z-overlay) - 1); }
+      body.side-open #sheet-backdrop { display: block; }
+      #sheet-backdrop.hidden { display: none; }
+      /* Touch targets */
+      .btn { min-height: 44px; }
+      input, select, textarea { min-height: 44px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Topbar -->
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <span class="brand-badge">OC</span>
+        <span>Ops Console</span>
+      </div>
+      <div id="status" class="muted"><span class="dot" aria-hidden="true"></span> connecting…</div>
+    </div>
+  </header>
+
+  <!-- Tabs -->
+  <nav class="tabs">
+    <div class="container tabs-inner">
+      <button class="tab active" data-tab="map">Oil Spills</button>
+      <button class="tab" data-tab="cams">Field Cameras</button>
+      <button class="tab" data-tab="incidents">Incidents</button>
+      <button class="tab" data-tab="logs">Logs</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <!-- TAB 1: Oil spills -->
+    <section id="tab-map" class="tabpanel active">
+      <div class="maplayout">
+        <div id="map"><div class="map-ui"><button id="side-toggle" class="fab">Controls</button></div></div>
+        <aside class="side">
+          <!-- AOI card -->
+          <div id="aoi-card" class="card">
+            <div class="card-header">Area of Interest</div>
+            <div class="card-body">
+              <div class="row">
+                <button id="aoi-start" class="btn">Draw AOI</button>
+                <button id="aoi-finish" class="btn" disabled>Finish</button>
+                <button id="aoi-reset" class="btn" disabled>Reset</button>
+                <button id="aoi-apply" class="btn btn-primary" disabled>Apply</button>
+                <button id="aoi-copy" class="btn" disabled>Copy WKT</button>
+              </div>
+              <div class="muted" style="font-size:12px">Click 3+ points on map, then “Finish”.</div>
+              <textarea id="aoi-wkt" rows="3" readonly></textarea>
+              <div id="aoi-bbox" class="log" style="padding:8px"></div>
+              <div id="aoi-area" class="log" style="padding:8px"></div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top: var(--space-3);">
+            <button id="aoi-scan" class="btn btn-primary">Scan Sentinel‑1 (ASF)</button>
+            <span id="scanCounts" class="muted" style="font-size:12px"></span>
+          </div>
+
+          <!-- AOI + Inference controls -->
+          <div class="card" id="aoi-infer-controls">
+            <div class="card-body">
+              <div class="row">
+                <label for="modelSelect" style="min-width:80px">Model</label>
+                <select id="modelSelect">
+                  <!--option value="unet_b48_v1" >U‑Net SAR 2ch (b48, v1)</option-->
+                  <option value="unet_densenet" selected>U-Net + DenseNet 201</option>
+                  <option value="deeplabv3_v1">DeepLabV3 + Resnet101</option>
+                </select>
+                <button id="btnPreprocess" class="btn btn-secondary">Preprocess (SNAP)</button>
+                <button id="btnRunInfer" class="btn btn-primary">Run Inference</button>
+              </div>
+              <div id="inferStatus" class="muted" style="font-size:12px">idle</div>
+            </div>
+          </div>
+        </aside>
+        <div id="sheet-backdrop" class="sheet-backdrop hidden" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <!-- TAB 2: Cameras -->
+    <section id="tab-cams" class="tabpanel">
+      <aside class="side left">
+        <h3 style="margin-top:0">Responders</h3>
+        <ul id="clientList" class="clients"></ul>
+      </aside>
+      <section class="grid">
+        <!-- 2 x 3 grid -->
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+        <div class="tile"><video autoplay playsinline muted></video><div class="overlay"></div></div>
+      </section>
+    </section>
+
+    <!-- TAB 3: Incidents -->
+    <section id="tab-incidents" class="tabpanel">
+      <h2 style="margin:0 0 8px">Incidents</h2>
+
+      <div class="row" style="margin: 8px 0;">
+        <label for="inc-filter">Filter</label>
+        <select id="inc-filter" style="max-width:220px">
+          <option value="open" selected>Open</option>
+          <option value="closed">Closed</option>
+          <option value="">All</option>
+        </select>
+        <button id="inc-refresh" class="btn btn-primary">Refresh</button>
+      </div>
+
+      <table class="table" id="inc-table">
+        <thead>
+          <tr>
+            <th>Incident ID</th>
+            <th>Title</th>
+            <th>Stage</th>
+            <th>Priority</th>
+            <th>Updated</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+
+      <div id="inc-detail" class="card" style="display:none; margin-top:16px">
+        <div class="card-body">
+          <h3 id="inc-title" style="margin:0 0 8px"></h3>
+
+          <div class="incident-container" style="display:flex; gap:24px; align-items:flex-start; justify-content:space-between; flex-wrap:wrap;">
+            <!-- Left: Meta -->
+            <div class="incident-meta" style="flex:1 1 420px; max-width:320px;">
+              <p><b>Stage:</b> <span id="inc-state"></span></p>
+              <p><b>Initial Assessment:</b> <span id="inc-priority">—</span></p>
+              <p><b>Verification:</b> <span id="inc-verif">—</span></p>
+              <p><b>Tier Level:</b> <span id="inc-tier">-</span></p>
+              <p><b>Spill Event Description:</b> <span id="inc-description">-</span></p>
+              <p><b>Area:</b> <span id="inc-area">0.000</span> km²</p>
+              <p><b>Distance from Nearest Shore:</b> <span id="inc-dist">0.000</span> km</p>
+              <p><b>Nearby Protected Area:</b> <span id="inc-nearest-prot-area">-</span></p>
+              <p><b>Nearby Desalination Plant:</b> <span id="inc-nearest-desalination">-</span></p>
+              <p><b>Nearby Port:</b> <span id="inc-nearest-port">-</span></p>
+
+              <div id="response-plan-box" class="panel">
+                <div class="panel-title">Response Plan</div>
+                <div id="response-plan-body" class="plan-grid">
+                  <!--
+                  Example (your JS can inject these):
+                  <div class="plan-key">Spill Event</div><div class="plan-val">Critical infra / port vicinity / protected areas</div>
+                  <div class="plan-key">Tier Level</div><div class="plan-val"><span class="badge">3</span></div>
+                  <div class="plan-key">ICS</div><div class="plan-val">Full ICS</div>
+                  <div class="plan-key">Deadline</div><div class="plan-val">15 min</div>
+                  <div class="plan-key">Escalate</div>
+                  <div class="plan-val"><div class="bento"><span class="chip">National spill response authority</span><span class="chip">Coast Guard</span><span class="chip">Port Authority</span></div></div>
+                  -->
+                </div>
+              </div>
+
+              <p><b>Response Status:</b> <span id="inc-resp-status">-</span></p>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="incident-actions" style="flex:1 1 420px; max-width:640px;">
+              <div class="right" style="margin-bottom:12px"><button id="btn-task" class="btn">Task Verification</button></div>
+
+              <div id="verifyPanel" class="panel" style="text-align:right">
+                <label for="verifyNotes"><b>Verification Notes</b></label>
+                <textarea id="verifyNotes" placeholder="Notes (optional)" style="height: 90px"></textarea>
+                <div class="row right" style="margin-top:8px">
+                  <button id="btn-confirm" class="btn btn-primary">Confirmed</button>
+                  <button id="btn-refute" class="btn btn-ghost">Refuted</button>
+                  <button id="btn-unsure" class="btn btn-secondary">Unsure</button>
+                </div>
+              </div>
+
+              <div class="right" style="margin: 8px 0"><button id="btn-plan" class="btn">Auto Plan (Area/Dist)</button></div>
+              <div class="right" style="margin: 8px 0"><button id="btn-response" class="btn">Task Response</button></div>
+              <div class="right"><button id="btn-close" class="btn">Response Complete</button></div>
+            </div>
+          </div>
+
+          <div class="spacer"></div>
+          <h4 style="margin:0 0 8px">Timeline</h4>
+          <ul id="inc-timeline"></ul>
+        </div>
+      </div>
+
+      <hr style="border:none; border-top:1px solid var(--border); margin:16px 0;"/>
+
+      <h2 style="margin:0 0 8px">Response Planning (Config)</h2>
+      <p class="muted" style="font-size:12px">Rules based on <i>Area</i> and <i>Distance to Shore</i> (km). Leave a bound blank to make it open‑ended.</p>
+      <table class="table" id="rules-table">
+        <thead>
+          <tr>
+            <th>Threat Category</th>
+            <th>Tier Level</th>
+            <th>Prob min</th>
+            <th>Prob max</th>
+            <th>Consequence min</th>
+            <th>Consequence max</th>
+            <th>Area min (km²)</th>
+            <th>Area max (km²)</th>
+            <th>Dist min (km)</th>
+            <th>Dist max (km)</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <!-- TAB 4: Logs -->
+    <section id="tab-logs" class="tabpanel">
+      <h3>Updates</h3>
+      <div id="scan-feed" class="log"></div>
+      <div id="log" class="log" style="margin-top:12px"></div>
+      <h3 style="margin-top:16px">Alerts / Status</h3>
+      <div id="alerts" class="log"></div>
+      <h3 style="margin-top:16px">Metrics</h3>
+      <div id="hz-metrics" class="log"></div>
+    </section>
+
+    <!-- TAB 5: Settings -->
+    <section id="tab-settings" class="tabpanel">
+      <form id="settingsForm" class="settings-grid" autocomplete="off">
+        <fieldset>
+          <legend>UI</legend>
+          <label><span>Theme</span>
+            <select id="theme-select" name="ui.theme">
+              <option value="auto">Auto</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <label><span>Compact layout</span><input type="checkbox" name="ui.compact"></label>
+          <label><span>Right column width (px)</span><input type="number" name="ui.rightColumnPx" min="360" max="900" step="10" placeholder="600"></label>
+          <label><span>Map style</span>
+            <select name="map.style">
+              <option value="esri_imagery">Esri Imagery</option>
+              <option value="osm_streets">OSM Streets</option>
+              <option value="dark_matter">Dark Matter</option>
+            </select>
+          </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Polling & Auto‑Refresh</legend>
+          <label><span>Scan new scenes interval (sec)</span><input type="number" name="poll.scanScenesSec" min="5" step="1" placeholder="60" required></label>
+          <label><span>UI auto‑refresh interval (sec)</span><input type="number" name="poll.uiRefreshSec" min="5" step="1" placeholder="15" required></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Response Heuristics</legend>
+          <label><span>Auto‑Plan default radius (km)</span><input type="number" name="plan.defaultRadiusKm" min="1" step="1" placeholder="30"></label>
+          <label><span>Protected area proximity bump (km)</span><input type="number" name="plan.protectedKm" min="0" step="0.5" placeholder="3"></label>
+          <label><span>Port/Intake proximity bump (km)</span><input type="number" name="plan.portKm" min="0" step="0.5" placeholder="10"></label>
+          <label><span>Desalination proximity bump (km)</span><input type="number" name="plan.desalKm" min="0" step="0.5" placeholder="10"></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>UAV Defaults</legend>
+          <label><span>Verify altitude (m AGL)</span><input type="number" name="uav.verifyAltM" min="20" step="5" placeholder="90"></label>
+          <label><span>Survey speed (m/s)</span><input type="number" name="uav.surveySpeed" min="3" step="0.5" placeholder="8"></label>
+          <label><span>Use thermal by default</span><input type="checkbox" name="uav.useThermal"></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Notifications</legend>
+          <label><span>Toast on UAV arrival</span><input type="checkbox" name="notify.uavArrival"></label>
+          <label><span>Desktop notifications</span><input type="checkbox" name="notify.desktop"></label>
+          <label><span>SITREP period (hours)</span><input type="number" name="notify.sitrepHours" min="1" step="1" placeholder="4"></label>
+        </fieldset>
+
+        <div class="settings-actions">
+          <button type="button" id="btn-settings-save" class="btn">Save</button>
+          <button type="button" id="btn-settings-reset" class="btn btn-sm btn-ghost">Reset to defaults</button>
+          <span id="settings-status" class="muted" aria-live="polite"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- Actions Modal -->
+  <div id="actions-modal" class="modal hidden" aria-hidden="true">
+    <div class="modal-box">
+      <header>
+        <span>Drone Actions</span>
+        <button type="button" class="close" id="act-close" aria-label="Close">×</button>
+      </header>
+      <div class="modal-body">
+        <div class="row"><label>Drone ID</label><input id="act-drone-id" type="text" readonly></div>
+        <div class="row two"></div>
+        <textarea id="act-status" rows="10" cols="50" readonly></textarea>
+        <div class="row"><button id="btn-get-status" class="btn btn-primary">Get Status</button><button id="btn-arm-takeoff" class="btn btn-primary">Arm & Take Off</button></div>
+        <hr style="border:none; border-top:1px solid var(--border);"/>
+        <div class="row">
+          <label>Polygon from inference or custom</label>
+          <select id="act-poly-select"></select>
+          <button id="act-poly-custom-btn" class="btn btn-ghost">Use Custom</button>
+        </div>
+        <div class="row hidden" id="act-poly-custom-row">
+          <textarea id="act-poly-custom" placeholder="[[lat,lon],[lat,lon],...] or GeoJSON Polygon"></textarea>
+        </div>
+        <div class="row two">
+          <button id="btn-goto-edge" class="btn btn-primary">Go to nearest side</button>
+          <button id="btn-hover-center" class="btn btn-primary">Hover at polygon center</button>
+        </div>
+        <hr style="border:none; border-top:1px solid var(--border);"/>
+        <div class="row two">
+          <div>
+            <label>Deploy duration (s)</label>
+            <input id="act-deploy-sec" type="number" min="1" value="5">
+          </div>
+          <div class="right" style="align-items:end">
+            <button id="btn-deploy" class="btn btn-warn">Deploy Payload</button>
+          </div>
+        </div>
+        <button id="btn-rtl" class="btn btn-primary">Return Home & Land</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/topojson-client@3/dist/topojson-client.min.js"></script>
+  <!-- Keep your existing module; IDs/class hooks are preserved -->
+  <script type="module" src="operator.js"></script>
+  <script>
+    (()=>{
+      function syncMapFull(){
+        const active = document.querySelector('.tabpanel.active');
+        document.body.classList.toggle('map-full', !!active && active.id === 'tab-map');
+      }
+      syncMapFull();
+      document.querySelectorAll('.tabs .tab').forEach(btn=>{
+        btn.addEventListener('click', ()=> setTimeout(syncMapFull, 0));
+      });
+
+      const toggle = document.getElementById('side-toggle');
+      const backdrop = document.getElementById('sheet-backdrop');
+      function openSheet(){ document.body.classList.add('side-open'); backdrop?.classList.remove('hidden'); }
+      function closeSheet(){ document.body.classList.remove('side-open'); backdrop?.classList.add('hidden'); }
+      toggle?.addEventListener('click', ()=> (document.body.classList.contains('side-open') ? closeSheet() : openSheet()));
+      backdrop?.addEventListener('click', closeSheet);
+
+      // Close sheet when leaving the map tab
+      document.querySelectorAll('.tabs .tab').forEach(t=>{
+        t.addEventListener('click', ()=>{ if(t.dataset.tab !== 'map') closeSheet(); });
+      });
+    })();
+  </script>
+</body>
+</html>
