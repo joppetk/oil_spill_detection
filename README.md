@@ -113,12 +113,14 @@ oil-spill-detection/
 ### Installation (Windows)
 
 1. **Clone the repository**
-
    ```bash
    git clone https://github.com/joppetk/oil_spill_detection.git
    cd oil_spill_detection
 
-2. **Create virtual environment (choose one)**
+2. **Download the trained weights and save to the location python-poller/weights**
+
+3. **Create virtual environment (choose one)**
+   
 
 Using venv (recommended)  
  ```bash
