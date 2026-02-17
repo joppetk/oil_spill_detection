@@ -2,3 +2,4 @@ asf_search
 torch
 torchvision
 rasterio
+segmentation_models_pytorch
