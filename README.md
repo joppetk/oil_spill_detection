@@ -23,9 +23,18 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 
 ### Model Overview
 - Trained on Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills
-- Model performance on 150 test sets:  
-    U-Net + Densenet201 backbone: mIoU = 78.82% / F1-score = 87.15% / FAR = 0.0091  
-    DeepLabV3 + Resnet101 backbone: mIoU = 72.00% / F1-score = 80.88% / FAR = 0.0110  
+- 
+**Model performance on 150 test sets**
+
+- **U‑Net + DenseNet201 backbone**  
+  - mIoU: 78.82%  
+  - F1‑score: 87.15%  
+  - FAR: 0.0091  
+
+- **DeepLabV3 + ResNet101 backbone**  
+  - mIoU: 72.00%  
+  - F1‑score: 80.88%  
+  - FAR: 0.0110
 
 
 ## Trained Weights
