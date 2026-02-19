@@ -112,7 +112,7 @@ oil-spill-detection/
    Paste the generated token into the `EDL_TOKEN` variable inside `scan_download.py`.
 
 
-### Installation (Windows)
+### Server Installation (Windows)
 
 1. **Clone the repository**
    ```bash
@@ -163,7 +163,11 @@ nodemon .\server.js
 https://<your-server-ipaddress>:8181/operator.html
 ```
 
-5. 
+### Incident Management Server Installation (WSL)  
+
+  
+### Raspberry Pi Companion Computer Installation  
+  
 
 ## Acknowledgments / References
 
