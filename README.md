@@ -137,7 +137,7 @@ conda create --name oil-spill python=3.9
 conda activate oil-spill
 ```
 
-3. **Navigate the where server.js is located and run npm install**
+3. **Navigate where server.js is located and run npm install**
 
  ```bash
 npm install
