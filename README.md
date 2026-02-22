@@ -173,27 +173,64 @@ https://<your-server-ipaddress>:8181/operator.html
 2. **Update Ubuntu**
 
 ```bash
-sudo apt update && sudo apt install python3-pip python3-venv -y
-sudo apt install libpq-dev python3-dev -y
+sudo apt update && sudo apt upgrade -y
+sudo apt install python3-pip python3-venv libpq-dev python3-dev -y
 ```
 
-3. **Create the environment.**
+3. **System Preparation.**
    
 ```bash
 cd /mnt/<path-to-your-oil_spill_db_folder>
 python3 -m venv venv
 ```
 
-4. **Activate the environment**
-   
+4. **Database Setup (PostgreSQL + PostGIS)**
+
 ```bash
-./venv/bin/activate
+# Install Postgres and PostGIS
+sudo apt install -y postgresql postgresql-contrib postgis
+
+# Start the service
+sudo service postgresql start
+
+# Create the database user and schema
+sudo -u postgres psql -c "CREATE USER oil WITH PASSWORD 'oilpass' SUPERUSER;"
+sudo -u postgres psql -c "CREATE DATABASE oil_db OWNER oil;"
+
+# Enable spatial extensions
+sudo -u postgres psql -d oil_db -c "CREATE EXTENSION IF NOT EXISTS postgis;"
 ```
 
-5. **Install the DB requirements.txt
+5. **Environment Setup**
    
 ```bash
-   pip install -r requirements-db.txt
+# Navigate to project folder
+cd /path/to/oil_spill_db
+
+# Create virtual environment
+python3 -m venv venv
+
+# Activate the environment
+source venv/bin/activate
+```
+
+6. **Install dependencies**
+   
+```bash
+pip install --upgrade pip
+pip install -r requirements-db.txt
+```
+
+7. **Configuration**
+   
+```bash
+echo 'DATABASE_URL="postgresql+psycopg2://oil:oilpass@127.0.0.1:5432/oil_db"' > .env
+```
+
+8. **Run the Server**
+   
+```bash
+python3 api.py
 ```
   
 ### Raspberry Pi Companion Computer Installation  
