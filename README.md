@@ -101,6 +101,9 @@ oil-spill-detection/
 - **ESA SNAP 12.0.0**  
   Download and install: https://download.esa.int/step/snap/12.0/installers/esa-snap_all_windows-12.0.0.exe
 
+- **WSL (if Windows)**  
+  Install WSL with Ubuntu distro (recommended)
+
 ### Required Credentials
 
 1. Create an account at the NASA Earthdata portal:  
@@ -165,6 +168,32 @@ https://<your-server-ipaddress>:8181/operator.html
 
 ### Incident Management Server Installation (WSL)  
 
+1. **Open your WSL Ubuntu terminal.**
+   
+2. **Update Ubuntu**
+
+```bash
+sudo apt update && sudo apt install python3-venv -y
+```
+
+3. **Create the environment.**
+   
+```bash
+cd /mnt/<path-to-your-oil_spill_db_folder>
+python3 -m venv venv
+```
+
+4. **Activate the environment**
+   
+```bash
+./venv/bin/activate
+```
+
+5. **Install the DB requirements.txt
+   
+```bash
+   pip install -r requirements.txt
+```
   
 ### Raspberry Pi Companion Computer Installation  
   
