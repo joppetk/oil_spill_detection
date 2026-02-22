@@ -221,7 +221,13 @@ pip install --upgrade pip
 pip install -r requirements-db.txt
 ```
 
-7. **Configuration**
+7. Restore Database Schema
+
+```bash
+psql "postgresql://oil:oilpass@127.0.0.1:5432/oil_db" -f database_schema_empty.sql
+```
+
+9. **Configuration**
    
 ```bash
 echo 'DATABASE_URL="postgresql+psycopg2://oil:oilpass@127.0.0.1:5432/oil_db"' > .env
