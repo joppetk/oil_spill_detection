@@ -224,7 +224,7 @@ pip install -r requirements-db.txt
 7. Restore Database Schema
 
 ```bash
-psql "postgresql://oil:oilpass@127.0.0.1:5432/oil_db" -f database_schema_empty.sql
+psql "postgresql://oil:oilpass@127.0.0.1:5432/oil_db" -f database_schema.sql
 ```
 
 9. **Configuration**
