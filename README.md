@@ -173,7 +173,7 @@ https://<your-server-ipaddress>:8181/operator.html
 2. **Update Ubuntu**
 
 ```bash
-sudo apt update && sudo apt install python3-venv -y
+sudo apt update && sudo apt install python3-pip python3-venv -y
 ```
 
 3. **Create the environment.**
@@ -192,7 +192,7 @@ python3 -m venv venv
 5. **Install the DB requirements.txt
    
 ```bash
-   pip install -r requirements.txt
+   pip install -r requirements-db.txt
 ```
   
 ### Raspberry Pi Companion Computer Installation  
