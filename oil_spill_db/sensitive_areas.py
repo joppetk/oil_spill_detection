@@ -100,12 +100,13 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
             wpi_url = "https://services9.arcgis.com/j1CY4yzWfwptbTWN/arcgis/rest/services/WorldPortIndex_WFL1/FeatureServer/0/query"
             params = {
                 "where": "1=1",
-                "geometry": f'{{"x":{lon},"y":{lat},"spatialReference":{{"wkid":4326}}}}',
+                #"geometry": f'{{"x":{lon},"y":{lat},"spatialReference":{{"wkid":4326}}}}',
+                "geometry": f"{lon},{lat}",
                 "geometryType": "esriGeometryPoint",
                 "inSR": 4326,
                 "distance": radius_m,
                 "units": "esriSRUnit_Meter",
-                "outFields": "PORT_NAME,COUNTRY,FUNCTION,ANCHORAGE_DEPTH",
+                "outFields": "PORT_NAME,COUNTRY,FUNCTION,ANCH_DEPTH",
                 "f": "geojson"
             }
             r = requests.get(wpi_url, params=params, timeout=20)
@@ -240,3 +241,4 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
 # If you already have a Flask app, register the route instead of running standalone:
 """ if __name__ == "__main__":
     app.run(debug=True) """
+
