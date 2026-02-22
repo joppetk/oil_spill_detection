@@ -174,6 +174,7 @@ https://<your-server-ipaddress>:8181/operator.html
 
 ```bash
 sudo apt update && sudo apt install python3-pip python3-venv -y
+sudo apt install libpq-dev python3-dev -y
 ```
 
 3. **Create the environment.**
