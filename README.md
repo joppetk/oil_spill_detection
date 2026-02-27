@@ -240,7 +240,52 @@ python3 api.py
 ```
   
 ### Raspberry Pi Companion Computer Installation  
-  
+
+### PX4 Simulator Preparation (WSL)
+
+1. **PX4 Setup**
+```bash
+# Update Ubuntu first
+sudo apt update && sudo apt upgrade -y
+
+# Download the PX4 source code
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+
+# Run the setup script (This takes about 10-15 mins)
+bash PX4-Autopilot/Tools/setup/ubuntu.sh
+```
+
+2. **Run PX4 Simulator**
+```bash
+cd ~/PX4-Autopilot
+make px4_sitl none
+mavlink stop-all
+mavlink start -x -m onboard -u 14580 -o 14540 -t <Raspberry Pi IP address> -r 4000000
+
+```
+
+### Raspberry Pi Companion Computer Setup
+
+1. **Remote to Raspberry (TigerVNC, VNC Viewer)**
+
+2. **Clone the companion computer**
+```bash
+git clone https://github.com/joppetk/oil_spill_detection/companion_computer.git
+cd companion_computer
+```
+
+3. **Run service**
+```bash
+python service2.py --allow-get
+
+```
+
+4. **Establish WebRTC Communication**
+```bash
+Open Mozilla Firefox
+(https://<your-server-ipaddress>:8181/pi.html)
+
+```
 
 ## Acknowledgments / References
 
