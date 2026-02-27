@@ -166,6 +166,9 @@ nodemon .\server.js
 https://<your-server-ipaddress>:8181/operator.html
 ```
 
+
+   
+
 ### Incident Management Server Installation (WSL)  
 
 1. **Open your WSL Ubuntu terminal.**
@@ -238,6 +241,8 @@ echo 'DATABASE_URL="postgresql+psycopg2://oil:oilpass@127.0.0.1:5432/oil_db"' > 
 ```bash
 python3 api.py
 ```
+
+  
   
 ### Raspberry Pi Companion Computer Installation  
 
@@ -263,6 +268,8 @@ mavlink stop-all
 mavlink start -x -m onboard -u 14580 -o 14540 -t <Raspberry Pi IP address> -r 4000000
 
 ```
+
+  
 
 ### Raspberry Pi Companion Computer Setup
 
