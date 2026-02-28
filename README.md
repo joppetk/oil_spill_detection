@@ -302,7 +302,7 @@ Default login:
    Password: admin
 
 
-5. **Put in Drone/Simulator settings**
+5. **Put in Drone/Simulator settings and start mission**
 
 
 
