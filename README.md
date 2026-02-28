@@ -280,21 +280,25 @@ mavlink start -x -m onboard -u 14580 -o 14540 -t <Raspberry Pi IP address> -r 40
 2. **Clone the companion computer**
 ```bash
 git clone https://github.com/joppetk/oil_spill_detection/companion_computer.git
-cd companion_computer
+
 ```
 
-3. **Run service**
+3. **Autostart on Raspberry Pi Desktop Boot**
 ```bash
-python service2.py --allow-get
-
+cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
+chmod +x /home/pi/companion_computer/main_ui.py
 ```
 
-4. **Establish WebRTC Communication**
-```bash
-Open Mozilla Firefox
-(https://<your-server-ipaddress>:8181/pi.html)
+4. **Reboot and it will launch automatically.**
+Default login:
+   Username: admin
+   Password: admin
 
-```
+
+5. **Put in Drone/Simulator settings**
+
+
+
 
 ## Acknowledgments / References
 
