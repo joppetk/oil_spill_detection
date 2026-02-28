@@ -79,6 +79,8 @@ oil-spill-detection/
 │   ├── ims_ops.py
 │   └── sensitive_areas.py
 ├── companion_computer/
+│   ├── drone_ui.desktop     # Autostart
+│   ├── main_ui.py
 │   ├── px4_ops.py
 │   └── service2.py
 ├── notebooks/               # Model training experiments
