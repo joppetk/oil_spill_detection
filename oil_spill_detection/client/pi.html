@@ -1,10 +1,62 @@
 <!doctype html>
-<html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Pi Publisher</title>
-<style>body{margin:0;background:#0b1526;color:#eaf2ff;font:14px system-ui} header{padding:8px 12px;border-bottom:1px solid #203a66}</style>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Pi Publisher</title>
+  <style>
+    :root{
+      --bg:#0b1526; --card:#101d35; --border:#203a66; --text:#eaf2ff; --muted:rgba(234,242,255,.7);
+    }
+    html,body{height:100%}
+    body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui}
+    header{padding:10px 14px;border-bottom:1px solid var(--border);display:flex;gap:10px;align-items:center}
+    header .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+    .badge{padding:2px 10px;border:1px solid var(--border);border-radius:999px;background:#0c1a33;color:var(--muted)}
+    main{height:calc(100% - 46px);display:grid;grid-template-columns: 1.6fr 1fr;gap:12px;padding:12px;box-sizing:border-box}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+    .cam{position:relative}
+    video{width:100%;height:100%;object-fit:cover;background:#000}
+    .panel{padding:12px;display:grid;gap:10px;align-content:start}
+    .title{font-weight:800;font-size:16px;margin:2px 0 6px}
+    .row{display:flex;justify-content:space-between;gap:12px;padding:10px 12px;border-radius:12px;background:#0c1a33;border:1px solid var(--border)}
+    .k{opacity:.75}
+    .v{font-weight:700;text-align:right}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace}
+  </style>
 </head>
 <body>
-<header>Publisher <span id="id"></span> <span id="st" style="opacity:.7"></span></header>
-<main><video id="prev" autoplay playsinline muted style="width: 320px; height: 180px; background:#000; margin:12px"></video></main>
-<script src="pi.js"></script>
-</body></html>
+  <header>
+    <div><b>Publisher</b> <span id="id" class="mono"></span></div>
+    <span id="st" class="badge">connecting…</span>
+
+    <div class="right">
+      <span class="badge">CTRL: <span id="ctrlst">—</span></span>
+      <span class="badge">TELEM: <span id="telemst">—</span></span>
+    </div>
+  </header>
+
+  <main>
+    <section class="card cam">
+      <video id="prev" autoplay playsinline muted></video>
+    </section>
+
+    <aside class="card panel">
+      <div class="title">Live Telemetry</div>
+
+      <div class="row"><div class="k">Drone ID</div><div class="v mono" id="droneId">—</div></div>
+      <div class="row"><div class="k">Status</div><div class="v" id="status">—</div></div>
+      <div class="row"><div class="k">Flight Mode</div><div class="v" id="fm">—</div></div>
+      <div class="row"><div class="k">Armed</div><div class="v" id="armed">—</div></div>
+      <div class="row"><div class="k">In Air</div><div class="v" id="inair">—</div></div>
+      <div class="row"><div class="k">Battery</div><div class="v" id="batt">—</div></div>
+      <div class="row"><div class="k">GPS Fix</div><div class="v" id="gpsfix">—</div></div>
+      <div class="row"><div class="k">Satellites</div><div class="v" id="sats">—</div></div>
+      <div class="row"><div class="k">Lat / Lon</div><div class="v mono" id="pos">—</div></div>
+      <div class="row"><div class="k">Alt (rel/abs)</div><div class="v" id="alt">—</div></div>
+    </aside>
+  </main>
+
+  <script src="pi.js"></script>
+</body>
+</html>
