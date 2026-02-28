@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Drone Companion UI
+Exec=/usr/bin/python3 /home/pi/companion_computer/main_ui.py
+Path=/home/pi/companion_computer
+Terminal=false
+X-GNOME-Autostart-enabled=true
