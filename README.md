@@ -285,6 +285,7 @@ git clone https://github.com/joppetk/oil_spill_detection/companion_computer.git
 
 3. **Autostart on Raspberry Pi Desktop Boot**
 ```bash
+mkdir /home/pi/.config/autostart
 cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
 chmod +x /home/pi/companion_computer/main_ui.py
 ```
