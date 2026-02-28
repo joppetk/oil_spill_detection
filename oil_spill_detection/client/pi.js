@@ -1,6 +1,48 @@
 const clientId = 'pi-' + Math.random().toString(36).slice(2,8);
 document.getElementById('id').textContent = clientId;
 
+const $ = (id) => document.getElementById(id);
+
+function setText(id, v){
+  const el = $(id);
+  if (el) el.textContent = v;
+}
+
+function startLocalHud(){
+  const fmtBool = (v) => (v === null || v === undefined) ? '—' : String(v);
+  const fmtNum  = (v, n=1) => (typeof v === 'number') ? v.toFixed(n) : '—';
+
+  setInterval(async () => {
+    const s = await getStatus();
+
+    // If mixed-content blocks the fetch, s will be {}
+    const ok = s && (s.droneId || s.status || s.lat || s.lon);
+    setText('telemst', ok ? 'LIVE' : 'OFFLINE');
+
+    setText('droneId', s.droneId ?? '—');
+    setText('status',  s.status ?? '—');
+    setText('fm',      s.flight_mode ?? '—');
+    setText('armed',   fmtBool(s.armed));
+    setText('inair',   fmtBool(s.in_air));
+
+    if (typeof s.battery_pct === 'number') setText('batt', `${s.battery_pct.toFixed(1)}%`);
+    else setText('batt', '—');
+
+    setText('gpsfix', s.gps_fix ?? '—');
+    setText('sats',   (s.satellites_used ?? '—'));
+
+    if (typeof s.lat === 'number' && typeof s.lon === 'number'){
+      setText('pos', `${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}`);
+    } else {
+      setText('pos', '—');
+    }
+
+    const rel = (typeof s.rel_alt_m === 'number') ? `${s.rel_alt_m.toFixed(1)}m` : '—';
+    const abs = (typeof s.abs_alt_m === 'number') ? `${s.abs_alt_m.toFixed(1)}m` : '—';
+    setText('alt', `${rel} / ${abs}`);
+  }, 500); // 2 Hz UI updates
+}
+
 const ws = new WebSocket(`wss://${location.host}/signal`);
 let localStream = null;
 const viewers = new Map(); // mid -> { pc }
@@ -17,6 +59,8 @@ ws.addEventListener('open', async () => {
     audio: false
   });
   document.getElementById('prev').srcObject = localStream;
+
+  startLocalHud();
 });
 
 let ctrl = null;
@@ -33,13 +77,17 @@ ws.addEventListener('message', async (ev) => {
     // inside the 'viewer-offer' handler, AFTER you created `pc`:
     pc.ondatachannel = (ev) => {
       if (ev.channel.label === 'ctrl') {
+        setText('ctrlst', 'connecting');
         ctrl = ev.channel;
         ctrl.onopen = () => {
           console.log('[ctrl] open');
+          setText('ctrlst', 'open');
           startTelemPump();              // begin streaming telemetry back
           ctrl.send(JSON.stringify({ type:'hello', role:'pi' }));
         };
         ctrl.onmessage = onCtrlMessage;  // handle incoming commands
+        ctrl.onclose = () => setText('ctrlst', 'closed');
+        ctrl.onerror = () => setText('ctrlst', 'error');
       }
     };
 
@@ -153,7 +201,16 @@ function startTelemPump(){
 }
 
 
-async function getGps() {
+//async function getGps() {
   // Replace with GPSD/serial integration on the Pi.
+  //return { lat: 24.47 + (Math.random()-0.5)*0.01, lon: 54.37 + (Math.random()-0.5)*0.01 };
+//}
+
+async function getGps() {
+  const s = await getStatus();
+  if (typeof s.lat === 'number' && typeof s.lon === 'number') {
+    return { lat: s.lat, lon: s.lon };
+  }
+  // fallback if telemetry not available yet
   return { lat: 24.47 + (Math.random()-0.5)*0.01, lon: 54.37 + (Math.random()-0.5)*0.01 };
 }
