@@ -11,7 +11,7 @@
 
 To support environmental protection efforts by enabling rapid, accurate detection and mitigation of marine oil spills through an integrated, technology‑driven response system.
 
-## ✨ Features
+## Features
 
 - Operator web user interface with area of interest (AOI) selection and interactive map
 - SAR scene discovery and download management via ASF API
