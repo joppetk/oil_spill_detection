@@ -265,9 +265,15 @@ bash PX4-Autopilot/Tools/setup/ubuntu.sh
 2. **Run PX4 Simulator**
 ```bash
 cd ~/PX4-Autopilot
+export PX4_HOME_LAT=14.38327
+export PX4_HOME_LON=120.57425
+export PX4_HOME_ALT=10
+Note: Change the coordinates as per your simulator home preference
+
 make px4_sitl none
 mavlink stop-all
-mavlink start -x -m onboard -u 14580 -o 14540 -t <Raspberry Pi IP address> -r 4000000
+mavlink start -x -m onboard -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
+Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 
 ```
 
