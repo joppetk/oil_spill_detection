@@ -286,6 +286,12 @@ Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 2. **Clone the companion computer**
 ```bash
 git clone https://github.com/joppetk/oil_spill_detection/companion_computer.git
+git clone --filter=blob:none --no-checkout https://github.com/joppetk/oil_spill_detection.git
+cd oil_spill_detection
+git sparse-checkout init --cone
+git sparse-checkout set companion_computer
+git checkout main
+
 
 ```
 
@@ -293,7 +299,7 @@ git clone https://github.com/joppetk/oil_spill_detection/companion_computer.git
 ```bash
 mkdir /home/pi/.config/autostart
 cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
-chmod +x /home/pi/companion_computer/main_ui.py
+chmod +x /home/pi/oil_spill_detection/companion_computer/main_ui.py
 ```
 
 4. **Reboot and it will launch automatically.**
