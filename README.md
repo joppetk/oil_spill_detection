@@ -7,9 +7,9 @@
   `<em>Example: Detected oil spill segmentation overlay on Sentinel-1 SAR image</em>`
 </p>
 
-State brief objectives here>.
+## ✨ Main Objective  
 
-This can help environmental agencies, coast guards, and cleanup teams respond faster to marine pollution events.
+To support environmental protection efforts by enabling rapid, accurate detection and mitigation of marine oil spills through an integrated, technology‑driven response system.
 
 ## ✨ Features
 
@@ -23,7 +23,7 @@ This can help environmental agencies, coast guards, and cleanup teams respond fa
 
 ### Model Overview
 - Trained on Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills
-- 
+  
 **Model performance on 150 test sets**
 
 - **U‑Net + DenseNet201 backbone**  
