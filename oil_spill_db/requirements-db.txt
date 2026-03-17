@@ -3,3 +3,9 @@ Flask==3.0.3
 
 # For handling Cross-Origin Resource Sharing (if you have a frontend)
 Flask-Cors==4.0.1
+
+SQLAlchemy==2.0.30
+psycopg2-binary
+geoalchemy2
+python-dotenv==1.0.1
+requests
