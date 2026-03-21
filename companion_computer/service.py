@@ -248,6 +248,12 @@ async def handle_deploy(req):
     if companion is None:
         raise web.HTTPServiceUnavailable(text="CompanionOps not initialized")
 
+    if not req.app.get("gpio_ready", False):
+        return web.json_response({
+            "ok": False,
+            "error": "GPIO not initialized on this companion computer"
+        }, status=503)
+
     async with lock:
         await companion.deploy_chemicals(duration_s=dur)
 
@@ -273,7 +279,12 @@ async def on_start(app):
         active_high=not args.deploy_active_low,
         dry_run=args.dry_gpio
     )
-    await companion.connect()
+    try:
+        await companion.connect()
+        app["gpio_ready"] = True
+    except Exception as e:
+        app["gpio_ready"] = False
+        print(f"[WARN] GPIO init failed: {e}")
 
     # Set explicit telemetry rates once
     t = ops.drone.telemetry
