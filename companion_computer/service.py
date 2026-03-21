@@ -13,6 +13,7 @@ from time import monotonic
 from typing import List, Tuple
 from aiohttp import web
 from px4_ops import DroneOps
+from companion_ops import CompanionOps
 
 # ----- CLI / Config -----
 ap = argparse.ArgumentParser()
@@ -29,10 +30,16 @@ ap.add_argument("--drone-id", default="PH_UAV_002")
 ap.add_argument("--telemetry-url", default=None)
 ap.add_argument("--telemetry-hz", type=float, default=2.0, help="Position/in_air update rate (Hz)")
 ap.add_argument("--allow-get", action="store_true", help="Enable GET for quick testing")
+
+ap.add_argument("--deploy-pin", type=int, default=18, help="GPIO pin for chemical deploy output")
+ap.add_argument("--dry-gpio", action="store_true", help="Do not access real GPIO, just log actions")
+ap.add_argument("--deploy-active-low", action="store_true", help="Use active-low logic for deploy pin")
+
 args = ap.parse_args()
 
 API_KEY = args.api_key
 ops: "DroneOps | None" = None
+companion: "CompanionOps | None" = None
 lock = asyncio.Lock()
 
 # ----- Status smoothing -----
@@ -224,6 +231,8 @@ async def handle_rtl(req):
         await ops.go_home(use_rtl=use_rtl, agl_m=agl)
     return web.json_response({"ok": True})
 
+
+
 async def handle_deploy(req):
     # require_key(req)
     if req.method == "POST":
@@ -232,38 +241,65 @@ async def handle_deploy(req):
         body = req.query
     else:
         raise web.HTTPMethodNotAllowed(req.method, ["POST"] + (["GET"] if args.allow_get else []))
+
     dur = float(body.get("duration_s", 5.0))
     report = body.get("report_url")
+
+    if companion is None:
+        raise web.HTTPServiceUnavailable(text="CompanionOps not initialized")
+
     async with lock:
-        await ops.deploy_chemicals(duration_s=dur, report_url=report)
-    return web.json_response({"ok": True})
+        await companion.deploy_chemicals(duration_s=dur)
+
+    return web.json_response({
+        "ok": True,
+        "duration_s": dur,
+        "report_url": report
+    })
 
 # ----- Lifecycle -----
 async def on_start(app):
-    global ops
-    ops = DroneOps(sys_addr=args.sys_addr,
-                   telemetry_post_url=args.telemetry_url,
-                   telemetry_hz=args.telemetry_hz)
+    global ops, companion
+
+    ops = DroneOps(
+        sys_addr=args.sys_addr,
+        telemetry_post_url=args.telemetry_url,
+        telemetry_hz=args.telemetry_hz
+    )
     await ops.connect()
 
-    # Set explicit telemetry rates once (helps reduce queue pressure)
+    companion = CompanionOps(
+        deploy_pin=args.deploy_pin,
+        active_high=not args.deploy_active_low,
+        dry_run=args.dry_gpio
+    )
+    await companion.connect()
+
+    # Set explicit telemetry rates once
     t = ops.drone.telemetry
     try:
         await asyncio.gather(
-            t.set_rate_position(args.telemetry_hz),  # e.g., 2 Hz
+            t.set_rate_position(args.telemetry_hz),
             t.set_rate_in_air(args.telemetry_hz),
             t.set_rate_battery(1.0),
             t.set_rate_gps_info(1.0),
         )
     except Exception:
-        # Some bindings may not expose all setters; that's OK.
         pass
 
     await ops.capture_home_from_current()
     await ops.start_telemetry_stream()
 
+
+
 async def on_cleanup(app):
-    await ops.stop_telemetry_stream()
+    global ops, companion
+
+    if ops is not None:
+        await ops.stop_telemetry_stream()
+
+    if companion is not None:
+        await companion.close()
 
 # ----- App wiring -----
 app = web.Application(middlewares=[cors_mw])
