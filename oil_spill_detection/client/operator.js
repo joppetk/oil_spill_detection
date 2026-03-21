@@ -1152,7 +1152,7 @@ const ctrlOps = {
     const durMs = Math.max(1, Number(sec)) * 1000;
     return sendCtrlAndWait(clientId, { cmd: 'deploy', duration_s: sec }, {
       overallTimeoutMs: durMs + 15_000,      // duration + buffer
-      progressTimeoutMs: Math.min(durMs, 20_000),
+      progressTimeoutMs: Math.min(durMs + 3_000, 20_000),
       requireAckMs: 30_000,
       finalOnly: true,
       donePred: CTRL_DONE,
