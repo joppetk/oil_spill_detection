@@ -1,0 +1,5 @@
+{
+  "threshold": 0.3,
+  "min_obj_pixels": 600,
+  "tta": false
+}
