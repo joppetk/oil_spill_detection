@@ -38,8 +38,8 @@ To support environmental protection efforts by enabling rapid, accurate detectio
 
 
 ## Trained Weights
-  U-Net + Densenet201: https://drive.google.com/file/d/1ktmrBPq3buC-MpcDYv15L3GoCqkNHRzh/view?usp=drive_link  
-  DeepLabV3 + Resnet101: https://drive.google.com/file/d/1rSZWQ5doakFCwIP0Z2kunUzwfogrA12-/view?usp=drive_link
+  U-Net + Densenet201: https://drive.google.com/file/d/1_Z2-cM2uRNvboqkqdsRbA_vzmZYj1Abj/view?usp=sharing  
+  DeepLabV3 + Resnet101: https://drive.google.com/file/d/1luY14yLrEWbbwaf63zpVtDmz3BzcuCnu/view?usp=sharing
   
 ## Project Structure
 
