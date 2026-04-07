@@ -39,7 +39,7 @@ To support environmental protection efforts by enabling rapid, accurate detectio
 
 ## Trained Weights
   U-Net + Densenet201: https://drive.google.com/file/d/1_Z2-cM2uRNvboqkqdsRbA_vzmZYj1Abj/view?usp=sharing  
-  DeepLabV3 + Resnet101: https://drive.google.com/file/d/1luY14yLrEWbbwaf63zpVtDmz3BzcuCnu/view?usp=sharing
+  DeepLabV3 + Resnet101: https://drive.google.com/file/d/1luY14yLrEWbbwaf63zpVtDmz3BzcuCnu/view?usp=sharing  
   **Download the trained weights and save to the location python-poller/weights**
   
 ## Project Structure
