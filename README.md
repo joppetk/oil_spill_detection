@@ -27,14 +27,14 @@ To support environmental protection efforts by enabling rapid, accurate detectio
 **Model performance on 150 test sets**
 
 - **U‑Net + DenseNet201 backbone**  
-  - mIoU: 78.82%  
-  - F1‑score: 87.15%  
-  - FAR: 0.0091  
+  - mIoU: 64.37%  
+  - F1‑score: 74.34%  
+  - FAR: 0.0099  
 
 - **DeepLabV3 + ResNet101 backbone**  
-  - mIoU: 72.00%  
-  - F1‑score: 80.88%  
-  - FAR: 0.0110
+  - mIoU: 54.86%  
+  - F1‑score: 63.80%  
+  - FAR: 0.0095
 
 
 ## Trained Weights
