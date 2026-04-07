@@ -40,6 +40,7 @@ To support environmental protection efforts by enabling rapid, accurate detectio
 ## Trained Weights
   U-Net + Densenet201: https://drive.google.com/file/d/1_Z2-cM2uRNvboqkqdsRbA_vzmZYj1Abj/view?usp=sharing  
   DeepLabV3 + Resnet101: https://drive.google.com/file/d/1luY14yLrEWbbwaf63zpVtDmz3BzcuCnu/view?usp=sharing
+  **Download the trained weights and save to the location python-poller/weights**
   
 ## Project Structure
 
@@ -61,8 +62,8 @@ oil-spill-detection/
 │       ├── snap-graphs/
 │           └── GraphSubset2.xml
 │       ├── weights/
-│           ├── deeplabv3_resnet101_oil_fold5_continued_best.pt
-│           ├── unet_densenet201_oil_fold5_ft_best.pt
+│           ├── save deeplab model here
+│           ├── save unet model here
 │           ├── infer_config_deeplab.json
 │           └── infer_config.json
 │       ├── infer_latest.py
