@@ -289,24 +289,27 @@ Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 git clone --filter=blob:none --sparse https://github.com/joppetk/oil_spill_detection.git
 cd oil_spill_detection
 git sparse-checkout set companion_computer
-
-
 ```
 
-3. **Autostart on Raspberry Pi Desktop Boot**
+3. **Install dependencies**
+```bash
+pip install -r companion_computer/requirements.txt
+```
+
+4. **Autostart on Raspberry Pi Desktop Boot**
 ```bash
 mkdir /home/pi/.config/autostart
 cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
 chmod +x /home/pi/oil_spill_detection/companion_computer/main_ui.py
 ```
 
-4. **Reboot and it will launch automatically.**
+5. **Reboot and it will launch automatically.**
 Default login:
    Username: admin
    Password: admin
 
 
-5. **Put in Drone/Simulator settings and start mission**
+6. **Put in Drone/Simulator settings and start mission**
 
 
 
