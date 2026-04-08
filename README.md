@@ -291,25 +291,31 @@ cd oil_spill_detection
 git sparse-checkout set companion_computer
 ```
 
-3. **Install dependencies**
+3. **Virtual Environment**
+```bash
+python3 -m venv ~/drone-venv
+source ~/drone-venv/bin/activate
+```
+
+4. **Install dependencies**
 ```bash
 pip install -r companion_computer/requirements.txt
 ```
 
-4. **Autostart on Raspberry Pi Desktop Boot**
+5. **Autostart on Raspberry Pi Desktop Boot**
 ```bash
 mkdir /home/pi/.config/autostart
 cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
 chmod +x /home/pi/oil_spill_detection/companion_computer/main_ui.py
 ```
 
-5. **Reboot and it will launch automatically.**
+6. **Reboot and it will launch automatically.**
 Default login:
    Username: admin
    Password: admin
 
 
-6. **Put in Drone/Simulator settings and start mission**
+7. **Put in Drone/Simulator settings and start mission**
 
 
 
