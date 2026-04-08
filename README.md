@@ -287,11 +287,8 @@ Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 2. **Clone the companion computer**
 ```bash
 git clone --filter=blob:none --sparse https://github.com/joppetk/oil_spill_detection.git
-git clone --filter=blob:none --no-checkout https://github.com/joppetk/oil_spill_detection.git
 cd oil_spill_detection
-git sparse-checkout init --cone
 git sparse-checkout set companion_computer
-git checkout main
 
 
 ```
