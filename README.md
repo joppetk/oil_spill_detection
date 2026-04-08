@@ -291,10 +291,10 @@ cd oil_spill_detection
 git sparse-checkout set companion_computer
 ```
 
-3. **Virtual Environment**
+3. **Setup and install dependencies**
 ```bash
-python3 -m venv ~/drone-venv
-source ~/drone-venv/bin/activate
+chmod +x setup.sh
+./companion_computer/setup.sh
 ```
 
 4. **Install dependencies**
