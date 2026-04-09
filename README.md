@@ -297,7 +297,7 @@ sudo apt update && sudo apt upgrade -y
 sudo apt install -y python3-pip python3-venv liblgpio-dev
 ```
 
-3. **Initialize Virtual Environment & Requirements**
+4. **Initialize Virtual Environment & Requirements**
 ```bash
 chmod +x companion_computer/setup.sh
 ./companion_computer/setup.sh
@@ -309,6 +309,11 @@ mkdir /home/pi/.config/autostart
 cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.desktop
 chmod +x /home/pi/oil_spill_detection/companion_computer/main_ui.py
 ```
+
+6. **Allow the insecure origin for the camera to display**
+Navigate to: chrome://flags/#unsafely-treat-insecure-origin-as-secure
+Hit Enable
+
 
 6. **Reboot and it will launch automatically.**
 Default login:
