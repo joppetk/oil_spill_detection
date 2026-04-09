@@ -291,15 +291,16 @@ cd oil_spill_detection
 git sparse-checkout set companion_computer
 ```
 
-3. **Setup and install dependencies**
+3. **Install System-Level Dependencies**
 ```bash
-chmod +x setup.sh
-./companion_computer/setup.sh
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y python3-pip python3-venv liblgpio-dev
 ```
 
-4. **Install dependencies**
+3. **Initialize Virtual Environment & Requirements**
 ```bash
-pip install -r companion_computer/requirements.txt
+chmod +x companion_computer/setup.sh
+./companion_computer/setup.sh
 ```
 
 5. **Autostart on Raspberry Pi Desktop Boot**
