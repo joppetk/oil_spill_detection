@@ -17,8 +17,8 @@ import secrets
 
 
 VENV_PY_CANDIDATES = [
-    "/home/pi/drone-venv/bin/python3",
-    "/home/pi/drone-venv/bin/python",
+    "/home/pi/oil_spill_detection/drone-venv/bin/python3",
+    "/home/pi/oil_spill_detection/drone-venv/bin/python",
 ]
 
 APP_DIR = Path(__file__).resolve().parent
