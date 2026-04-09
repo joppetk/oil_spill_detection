@@ -282,7 +282,7 @@ Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 
 ### Raspberry Pi Companion Computer Setup
 
-1. **Remote to Raspberry (TigerVNC, VNC Viewer)**
+1. **Remote to Raspberry (Putty-SSH, TigerVNC, VNC Viewer)**
 
 2. **Clone the companion computer**
 ```bash
