@@ -288,7 +288,9 @@ Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 ```bash
 git clone --filter=blob:none --sparse https://github.com/joppetk/oil_spill_detection.git
 cd oil_spill_detection
+git sparse-checkout init --no-cone
 git sparse-checkout set companion_computer
+git checkout main
 ```
 
 3. **Install System-Level Dependencies**
