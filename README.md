@@ -312,8 +312,8 @@ cp companion_computer/drone_ui.desktop /home/pi/.config/autostart/drone_ui.deskt
 chmod +x /home/pi/oil_spill_detection/companion_computer/main_ui.py
 ```
 
-6. **Allow the insecure origin for the camera to display**
-Navigate to: chrome://flags/#unsafely-treat-insecure-origin-as-secure
+6. **Allow the insecure origin for the camera to display**  
+Navigate to: chrome://flags/#unsafely-treat-insecure-origin-as-secure  
 Hit Enable
 
 
