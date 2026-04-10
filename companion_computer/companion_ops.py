@@ -1,5 +1,6 @@
 # companion_ops.py
 import asyncio
+from datetime import datetime, timezone
 
 from gpiozero import OutputDevice
 from gpiozero.pins.lgpio import LGPIOFactory
@@ -15,9 +16,24 @@ class CompanionOps:
         self._factory = None
         self._lock = asyncio.Lock()
 
+        self.deploy_state = "LOW"
+        self.last_toggle = None
+
+    def _mark_state(self, state: str):
+        self.deploy_state = state
+        self.last_toggle = datetime.now(timezone.utc).isoformat()
+
+    def get_gpio_status(self):
+        return {
+            "pin": f"GPIO{self.deploy_pin_num}",
+            "state": self.deploy_state,
+            "last_toggle": self.last_toggle,
+        }
+
     async def connect(self):
         if self.dry_run:
             print(f"[CompanionOps] DRY RUN enabled, deploy_pin={self.deploy_pin_num}")
+            self._mark_state("LOW")
             return
 
         self._factory = LGPIOFactory()
@@ -27,6 +43,8 @@ class CompanionOps:
             initial_value=False,
             pin_factory=self._factory,
         )
+
+        self._mark_state("LOW")
         print(f"[CompanionOps] GPIO ready on pin {self.deploy_pin_num}")
 
     async def close(self):
@@ -38,22 +56,33 @@ class CompanionOps:
                     self._deploy_pin.close()
                     self._deploy_pin = None
 
-    async def pulse_deploy(self, duration_s: float = 5.0):
-        duration_s = max(0.0, float(duration_s))
+            self._mark_state("LOW")
+
+    async def set_deploy(self, enabled: bool):
         async with self._lock:
             if self.dry_run:
-                print(f"[CompanionOps] pulse_deploy({duration_s}s)")
-                await asyncio.sleep(duration_s)
+                self._mark_state("HIGH" if enabled else "LOW")
+                print(f"[CompanionOps] set_deploy({enabled})")
                 return
 
             if self._deploy_pin is None:
                 raise RuntimeError("CompanionOps not initialized")
 
-            self._deploy_pin.on()
-            try:
-                await asyncio.sleep(duration_s)
-            finally:
+            if enabled:
+                self._deploy_pin.on()
+                self._mark_state("HIGH")
+            else:
                 self._deploy_pin.off()
+                self._mark_state("LOW")
+
+    async def pulse_deploy(self, duration_s: float = 5.0):
+        duration_s = max(0.0, float(duration_s))
+
+        await self.set_deploy(True)
+        try:
+            await asyncio.sleep(duration_s)
+        finally:
+            await self.set_deploy(False)
 
     async def deploy_chemicals(self, duration_s: float = 5.0):
         await self.pulse_deploy(duration_s)
