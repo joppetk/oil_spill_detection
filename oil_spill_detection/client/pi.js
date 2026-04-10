@@ -12,14 +12,100 @@ let localStream = null;
 const viewers = new Map(); // mid -> { pc }
 let ctrl = null;
 
+let hudTimer = null;    // prevents multiple HUD intervals
+
 let hbTimer = null;
 let telemTimer = null;
+
+let currentMaxBitrate = 250_000; // default from HTML
+let currentMaxFps = 10;
+
+
+
+function readQualityUI(){
+  const br = parseInt(document.getElementById('brSel')?.value || "250000", 10);
+  const fps = parseInt(document.getElementById('fpsSel')?.value || "10", 10);
+  return { br, fps };
+}
+
+// Guardrails (auto-adjust)
+function normalizeQuality(br, fps){
+  // Suggested safe ceilings for stability
+  if (br <= 120_000 && fps > 8) fps = 8;
+  if (br <= 260_000 && fps > 10) fps = 10;
+  return { br, fps };
+}
+
+
 
 function wsUrl() {
   return `wss://${location.host}/signal`;
 }
 
+function setClass(id, cls) {
+  const el = $(id);
+  if (!el) return;
+  el.classList.remove('gpio-on', 'gpio-off', 'gpio-warn');
+  if (cls) el.classList.add(cls);
+}
+
+function fmtTs(ts) {
+  if (!ts) return '—';
+  try {
+    return new Date(ts).toLocaleTimeString();
+  } catch {
+    return String(ts);
+  }
+}
+
+function updateGpioHud(gpio) {
+  if (!gpio) {
+    setText('deployPin', '—');
+    setText('deployState', '—');
+    setText('deployLast', '—');
+    setClass('deployState', '');
+    return;
+  }
+
+  const pin = gpio.pin ?? '—';
+  const state = gpio.state ?? '—';
+  const last = gpio.last_toggle ?? null;
+
+  setText('deployPin', pin);
+  setText('deployState', state);
+  setText('deployLast', fmtTs(last));
+
+  if (state === 'HIGH' || state === 'ON' || state === 'DEPLOYING') {
+    setClass('deployState', 'gpio-on');
+  } else if (state === 'LOW' || state === 'OFF' || state === 'IDLE') {
+    setClass('deployState', 'gpio-off');
+  } else {
+    setClass('deployState', 'gpio-warn');
+  }
+}
+
 /* ---------- Camera ---------- */
+
+async function applySenderEncodingAll(){
+  for (const [mid, v] of viewers.entries()){
+    if (!v?.sender) continue;
+
+    try{
+      const params = v.sender.getParameters();
+      params.encodings = params.encodings && params.encodings.length ? params.encodings : [{}];
+
+      params.encodings[0].maxBitrate = currentMaxBitrate;
+      params.encodings[0].maxFramerate = currentMaxFps;
+      params.encodings[0].priority = 'low';
+
+      await v.sender.setParameters(params);
+      console.log(`[qos] applied to ${mid}: br=${currentMaxBitrate} fps=${currentMaxFps}`);
+    }catch(e){
+      console.warn('[qos] setParameters failed', e);
+    }
+  }
+}
+
 async function startCamera() {
   // capture camera (tune for sat link)
   localStream = await navigator.mediaDevices.getUserMedia({
@@ -28,7 +114,36 @@ async function startCamera() {
   });
   const v = $('prev');
   if (v) v.srcObject = localStream;
+} 
+
+async function startCamera() {
+  // Use UI-selected quality for capture FPS too
+  let q = readQualityUI();
+  q = normalizeQuality(q.br, q.fps);
+  currentMaxBitrate = q.br;
+  currentMaxFps = q.fps;
+
+  const baseVideo = { width: 640, height: 360 };
+
+  // Try strict FPS first; fallback if camera rejects constraints
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { ...baseVideo, frameRate: { ideal: currentMaxFps, max: currentMaxFps } },
+      audio: false
+    });
+  } catch (e) {
+    console.warn('[cam] strict fps failed; falling back', e);
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { ...baseVideo, frameRate: { ideal: currentMaxFps, max: 12 } },
+      audio: false
+    });
+  }
+
+  const v = $('prev');
+  if (v) v.srcObject = localStream;
 }
+
+
 
 function stopCamera() {
   try {
@@ -39,7 +154,34 @@ function stopCamera() {
     localStream.getTracks().forEach(t => { try { t.stop(); } catch {} });
   }
   localStream = null;
-}
+} 
+
+
+
+async function restartCameraAndReplaceTracks(){
+  // stop + restart camera
+  stopCamera();
+  await new Promise(r => setTimeout(r, 300));
+  await startCamera();
+
+  const newTrack = localStream?.getVideoTracks?.()[0];
+  if (!newTrack) return;
+
+  // replace track into existing senders (no renegotiation needed)
+  for (const [mid, v] of viewers.entries()){
+    if (!v?.sender) continue;
+    try {
+      await v.sender.replaceTrack(newTrack);
+    } catch (e) {
+      console.warn(`[cam] replaceTrack failed for ${mid}`, e);
+    }
+  }
+
+  // ensure encoder constraints match new settings
+  await applySenderEncodingAll();
+} 
+
+
 
 /* ---------- Viewers / PeerConnections ---------- */
 function closeViewers() {
@@ -130,7 +272,7 @@ function scheduleReconnect(reason = 'unknown'){
   }, delay);
 }
 
-function startLocalHud(){
+/* function startLocalHud(){
   const fmtBool = (v) => (v === null || v === undefined) ? '—' : String(v);
   const fmtNum  = (v, n=1) => (typeof v === 'number') ? v.toFixed(n) : '—';
 
@@ -162,7 +304,47 @@ function startLocalHud(){
     const rel = (typeof s.rel_alt_m === 'number') ? `${s.rel_alt_m.toFixed(1)}m` : '—';
     const abs = (typeof s.abs_alt_m === 'number') ? `${s.abs_alt_m.toFixed(1)}m` : '—';
     setText('alt', `${rel} / ${abs}`);
+
+    updateGpioHud(s.gpio);
+
   }, 500); // 2 Hz UI updates
+} */
+
+function startLocalHud(){
+  if (hudTimer) return; // ✅ prevent duplicates on reconnect
+
+  const fmtBool = (v) => (v === null || v === undefined) ? '—' : String(v);
+
+  hudTimer = setInterval(async () => {
+    const s = await getStatus();
+
+    const ok = s && (s.droneId || s.status || s.lat || s.lon);
+    setText('telemst', ok ? 'LIVE' : 'OFFLINE');
+
+    setText('droneId', s.droneId ?? '—');
+    setText('status',  s.status ?? '—');
+    setText('fm',      s.flight_mode ?? '—');
+    setText('armed',   fmtBool(s.armed));
+    setText('inair',   fmtBool(s.in_air));
+
+    if (typeof s.battery_pct === 'number') setText('batt', `${s.battery_pct.toFixed(1)}%`);
+    else setText('batt', '—');
+
+    setText('gpsfix', s.gps_fix ?? '—');
+    setText('sats',   (s.satellites_used ?? '—'));
+
+    if (typeof s.lat === 'number' && typeof s.lon === 'number'){
+      setText('pos', `${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}`);
+    } else {
+      setText('pos', '—');
+    }
+
+    const rel = (typeof s.rel_alt_m === 'number') ? `${s.rel_alt_m.toFixed(1)}m` : '—';
+    const abs = (typeof s.abs_alt_m === 'number') ? `${s.abs_alt_m.toFixed(1)}m` : '—';
+    setText('alt', `${rel} / ${abs}`);
+
+    updateGpioHud(s.gpio);
+  }, 500);
 }
 
 function connectWs() {
@@ -205,9 +387,13 @@ function connectWs() {
         try { await startCamera(); } catch (e) { console.warn('camera start failed', e); }
       }
 
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
-      viewers.set(msg.mid, { pc });
-
+      const pc = new RTCPeerConnection({ iceServers: [
+        { urls: ['stun:stun.l.google.com:19302'] },
+        { urls: ['stun:stun1.l.google.com:19302'] }
+      ] 
+    });
+      // viewers.set(msg.mid, { pc });
+      viewers.set(msg.mid, { pc, sender: null });
       pc.ondatachannel = (ev) => {
         if (ev.channel.label === 'ctrl') {
           ctrl = ev.channel;
@@ -227,10 +413,16 @@ function connectWs() {
       // add camera
       const [track] = localStream.getVideoTracks();
       const sender = pc.addTrack(track, localStream);
+      const entry = viewers.get(msg.mid);
+      if (entry) entry.sender = sender;
 
-      // cap bitrate for sat link (~200 kbps)
+      // selectable bitrate for sat link (~250 kbps)
       const params = sender.getParameters();
-      params.encodings = [{ maxBitrate: 200_000, maxFramerate: 8, priority: 'low' }];
+      //params.encodings = [{ maxBitrate: 200_000, maxFramerate: 8, priority: 'low' }];
+      params.encodings = params.encodings && params.encodings.length ? params.encodings : [{}];
+      params.encodings[0].maxBitrate = currentMaxBitrate;
+      params.encodings[0].maxFramerate = currentMaxFps;
+      params.encodings[0].priority = 'low';
       sender.setParameters(params).catch(()=>{});
 
       pc.onicecandidate = (e) => e.candidate && ws.send(JSON.stringify({ type:'viewer-ice', mid: msg.mid, candidate: e.candidate }));
@@ -325,6 +517,8 @@ async function onCtrlMessage(ev){
         method:'POST', headers:{'Content-Type':'application/json','X-API-Key':'SUPERSECRET'},
         body: JSON.stringify({ duration_s: m.duration_s ?? 5 })
       });
+      const s = await getStatus();
+      updateGpioHud(s.gpio);
       ctrl.send(JSON.stringify({type:'ack', id:m.id, ok:true}));
 
     } else if (m.cmd === 'status') {
@@ -359,6 +553,44 @@ async function getGps() {
 
 /* ---------- Wire buttons + boot ---------- */
 document.addEventListener('DOMContentLoaded', async () => {
+
+  // restore previous choices
+  const savedBr  = localStorage.getItem('pi_br');
+  const savedFps = localStorage.getItem('pi_fps');
+  if (savedBr && document.getElementById('brSel')) document.getElementById('brSel').value = savedBr;
+  if (savedFps && document.getElementById('fpsSel')) document.getElementById('fpsSel').value = savedFps;
+
+  // set defaults
+  let q = readQualityUI();
+  q = normalizeQuality(q.br, q.fps);
+  currentMaxBitrate = q.br;
+  currentMaxFps = q.fps;
+
+  const applyBtn = document.getElementById('applyQBtn');
+  applyBtn && applyBtn.addEventListener('click', async () => {
+    let q = readQualityUI();
+    q = normalizeQuality(q.br, q.fps);
+
+    // reflect clamps back to UI
+    document.getElementById('brSel').value = String(q.br);
+    document.getElementById('fpsSel').value = String(q.fps);
+
+    const prevFps = currentMaxFps;
+
+    currentMaxBitrate = q.br;
+    currentMaxFps = q.fps;
+
+    localStorage.setItem('pi_br', String(q.br));
+    localStorage.setItem('pi_fps', String(q.fps));
+
+    // If FPS changed, we must restart capture to really change camera FPS
+    if (prevFps !== currentMaxFps) {
+      await restartCameraAndReplaceTracks();
+    } else {
+      await applySenderEncodingAll();
+    }
+  });
+
   // refresh button (if you still keep it)
   const refreshBtn = $('refreshBtn');
   refreshBtn && refreshBtn.addEventListener('click', () => location.reload());
