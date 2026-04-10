@@ -22,7 +22,7 @@ ap.add_argument("--port", type=int, default=8088)
 ap.add_argument("--api-key", default="SUPERSECRET")
 
 # IMPORTANT: UI should pass: --sys-addr udp://0.0.0.0:<SIM_PORT>
-ap.add_argument("--sys-addr", default="udp://0.0.0.0:14541")
+ap.add_argument("--sys-addr", default="udp://0.0.0.0:14542")
 
 # ✅ NEW: drone id passed in from UI
 ap.add_argument("--drone-id", default="PH_UAV_002")
@@ -135,7 +135,6 @@ async def handle_health(req):
 async def handle_status(req):
     d = ops.drone
 
-    # ✅ CHANGED: stop hardcoding drone_id
     drone_id = getattr(args, "drone_id", "UNKNOWN_DRONE")
 
     pos, armed, in_air, batt, gps, flight_mode = await asyncio.gather(
@@ -147,7 +146,6 @@ async def handle_status(req):
         one_sample(d.telemetry.flight_mode(), 1.0) if hasattr(d.telemetry, "flight_mode") else asyncio.sleep(0, result=None)
     )
 
-    # Coerce booleans: keep None as False for instantaneous calc, but they won’t force a downshift due to smoothing
     armed_b = bool(armed) if armed is not None else False
     in_air_b = bool(in_air) if in_air is not None else False
     fm = str(flight_mode).split(".")[-1] if flight_mode is not None else None
@@ -171,16 +169,36 @@ async def handle_status(req):
             "abs_alt_m": pos.absolute_altitude_m,
             "rel_alt_m": pos.relative_altitude_m,
         })
+
     if batt:
         if getattr(batt, "remaining_percent", None) is not None:
             resp["battery_pct"] = round(batt.remaining_percent * 100.0, 1)
         if getattr(batt, "voltage_v", None) is not None:
             resp["battery_v"] = round(batt.voltage_v, 2)
+
     if gps:
         resp["satellites_used"] = getattr(gps, "num_satellites", None)
         ft = getattr(gps, "fix_type", None)
         if ft is not None:
             resp["gps_fix"] = str(ft).split(".")[-1].lower()
+
+    # NEW: include GPIO / payload deploy status
+    if companion is not None:
+        try:
+            resp["gpio"] = companion.get_gpio_status()
+        except Exception as e:
+            resp["gpio"] = {
+                "pin": f"GPIO{args.deploy_pin}",
+                "state": "ERROR",
+                "last_toggle": None,
+                "error": str(e),
+            }
+    else:
+        resp["gpio"] = {
+            "pin": f"GPIO{args.deploy_pin}",
+            "state": "UNAVAILABLE",
+            "last_toggle": None,
+        }
 
     return web.json_response(resp)
 
@@ -234,7 +252,6 @@ async def handle_rtl(req):
 
 
 async def handle_deploy(req):
-    # require_key(req)
     if req.method == "POST":
         body = await req.json()
     elif req.method == "GET" and args.allow_get:
@@ -248,19 +265,14 @@ async def handle_deploy(req):
     if companion is None:
         raise web.HTTPServiceUnavailable(text="CompanionOps not initialized")
 
-    if not req.app.get("gpio_ready", False):
-        return web.json_response({
-            "ok": False,
-            "error": "GPIO not initialized on this companion computer"
-        }, status=503)
-
     async with lock:
         await companion.deploy_chemicals(duration_s=dur)
 
     return web.json_response({
         "ok": True,
         "duration_s": dur,
-        "report_url": report
+        "report_url": report,
+        "gpio": companion.get_gpio_status()
     })
 
 # ----- Lifecycle -----
@@ -279,14 +291,14 @@ async def on_start(app):
         active_high=not args.deploy_active_low,
         dry_run=args.dry_gpio
     )
+
     try:
         await companion.connect()
-        app["gpio_ready"] = True
+        print(f"[service] Companion GPIO ready on GPIO{args.deploy_pin}")
     except Exception as e:
-        app["gpio_ready"] = False
-        print(f"[WARN] GPIO init failed: {e}")
+        print(f"[service] WARNING: Companion GPIO init failed: {e}")
+        companion = None
 
-    # Set explicit telemetry rates once
     t = ops.drone.telemetry
     try:
         await asyncio.gather(
