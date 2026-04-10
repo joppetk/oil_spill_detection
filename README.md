@@ -274,6 +274,8 @@ Note: Change the coordinates as per your simulator home preference
 make px4_sitl none
 mavlink stop-all
 mavlink start -x -m onboard -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
+or
+mavlink start -x -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
 Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
 
 ```
