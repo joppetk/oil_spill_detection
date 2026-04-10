@@ -138,12 +138,12 @@ async def handle_status(req):
     drone_id = getattr(args, "drone_id", "UNKNOWN_DRONE")
 
     pos, armed, in_air, batt, gps, flight_mode = await asyncio.gather(
-        one_sample(d.telemetry.position(), 1.0),
-        one_sample(d.telemetry.armed(),   1.0),
-        one_sample(d.telemetry.in_air(),  1.0),
-        one_sample(d.telemetry.battery(), 1.0),
-        one_sample(d.telemetry.gps_info(),1.0),
-        one_sample(d.telemetry.flight_mode(), 1.0) if hasattr(d.telemetry, "flight_mode") else asyncio.sleep(0, result=None)
+        one_sample(d.telemetry.position(), 2.0),
+        one_sample(d.telemetry.armed(),   2.0),
+        one_sample(d.telemetry.in_air(),  2.0),
+        one_sample(d.telemetry.battery(), 2.0),
+        one_sample(d.telemetry.gps_info(),2.0),
+        one_sample(d.telemetry.flight_mode(), 2.0) if hasattr(d.telemetry, "flight_mode") else asyncio.sleep(0, result=None)
     )
 
     armed_b = bool(armed) if armed is not None else False
