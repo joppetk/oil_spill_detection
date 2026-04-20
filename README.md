@@ -249,6 +249,60 @@ python3 api.py
   
 ### Raspberry Pi Companion Computer Installation  
 
+### PX4 Simulator Preparation (Raspberry Pi)
+
+1. **PX4 Setup**
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y git python3 python3-venv python3-pip cmake build-essential
+```
+
+2. **Clone the PX4 repository (this takes a while the first time)**
+```bash
+cd ~
+git clone https://github.com/PX4/PX4-Autopilot.git --recursive
+cd PX4-Autopilot
+```
+
+3. **Install system build dependencies**
+```bash
+bash Tools/setup/ubuntu.sh
+```
+
+4. **Create and activate a Python virtual environment**
+```bash
+python3 -m venv ~/px4_venv
+source ~/px4_venv/bin/activate
+```
+
+5. **Install PX4 Python requirements inside the venv**
+```bash
+pip install --upgrade pip
+pip install -r Tools/setup/requirements.txt
+```
+
+6. **Build + run PX4 SITL with no simulator (while the venv is activated)**
+```bash
+make px4_sitl none_iris
+```
+
+2. **Run PX4 Simulator**
+```bash
+cd ~/PX4-Autopilot
+export PX4_HOME_LAT=14.38327
+export PX4_HOME_LON=120.57425
+export PX4_HOME_ALT=10
+Note: Change the coordinates as per your simulator home preference
+
+make px4_sitl none
+mavlink stop-all
+mavlink start -x -m onboard -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
+or
+mavlink start -x -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
+Note: Usually, the UDP input port is 14580 and the UDP output port is 14540.
+
+```
+
 ### PX4 Simulator Preparation (WSL)
 
 1. **PX4 Setup**
