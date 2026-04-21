@@ -294,6 +294,14 @@ export PX4_HOME_LON=120.57425
 export PX4_HOME_ALT=10
 Note: Change the coordinates as per your simulator home preference
 
+cd ~/PX4-Autopilot
+PX4_SYS_AUTOSTART=4001 PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 1
+mavlink start -x -m onboard -u <UDP input port 1> -o <UDP output port 1> -t <Raspberry Pi 1 IP address> -r 4000000
+
+cd ~/PX4-Autopilot
+PX4_GZ_STANDALONE=1 PX4_SYS_AUTOSTART=4001 PX4_GZ_MODEL_POSE="0,1" PX4_SIM_MODEL=gz_x500 ./build/px4_sitl_default/bin/px4 -i 2
+mavlink start -x -m onboard -u <UDP input port 2> -o <UDP output port 2> -t <Raspberry Pi 2 IP address> -r 4000000
+
 make px4_sitl none
 mavlink stop-all
 mavlink start -x -m onboard -u <UDP input port> -o <UDP output port> -t <Raspberry Pi IP address> -r 4000000
