@@ -310,6 +310,9 @@ PX4_HOME_LAT=24.4843 \
 PX4_HOME_LON=54.3165 \
 PX4_HOME_ALT=10 \
 ./build/px4_sitl_default/bin/px4 -i 1
+
+
+mavlink start -x -m onboard -u <UDP input port 1> -o <UDP output port 1> -t <Raspberry Pi 1 IP address> -r 4000000
 ```
 
 5. **World B - Terminal 3: start Gazebo world B**
@@ -329,6 +332,9 @@ PX4_HOME_LAT=24.5000 \
 PX4_HOME_LON=54.3500 \
 PX4_HOME_ALT=10 \
 ./build/px4_sitl_default/bin/px4 -i 2
+
+
+mavlink start -x -m onboard -u <UDP input port 2> -o <UDP output port 2> -t <Raspberry Pi 2 IP address> -r 4000000
 ```
 
 
