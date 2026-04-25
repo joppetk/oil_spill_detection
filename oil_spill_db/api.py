@@ -109,6 +109,7 @@ def _link_incident_site(conn, incident_id, site_id, relation_type, distance_m, s
     conn.execute(text("""
       INSERT INTO incident_sites (incident_id, site_id, relation_type, distance_m, snapshot)
       VALUES (:iid, :sid, :rel, :dist, :snap)
+      
       ON CONFLICT (incident_id, site_id, relation_type) DO UPDATE
         SET distance_m = EXCLUDED.distance_m,
             snapshot   = EXCLUDED.snapshot
@@ -428,6 +429,8 @@ def create_incident_from_detection_1():
 
     return jsonify({"ok": True, "incident": dict(row)})
 
+
+
 @app.post("/incidents/from-detection")
 def create_incident_from_detection():
     """
@@ -510,14 +513,23 @@ def create_incident_from_detection():
             """), {"iid": iid}).mappings().first()
             lat, lon = float(latlon["lat"]), float(latlon["lon"])
 
+            print("lat = ", lat)
+            print("lon = ", lon)
+
             # 4) Call external APIs ONCE and cache results
             try:
                 sa_data = query_sensitive_areas(lat=lat, lon=lon, radius_km=100.0)
             except Exception as e:
                 sa_data = {"nearest": {"port": None, "protected_area": None, "desalination": None}}
 
+            print("sa_data = ", sa_data)
+
             # 5) Upsert nearest sites + link + denormalized columns
             nearest = (sa_data or {}).get("nearest", {}) or {}
+
+            print("nearest port= ", nearest.get("port"))
+            print("nearest prot= ", nearest.get("protected_area"))
+            print("nearest desal= ", nearest.get("desalination"))
 
             # Port
             if nearest.get("port"):
@@ -534,6 +546,9 @@ def create_incident_from_detection():
             if nearest.get("protected_area"):
                 sid = _upsert_site(conn, nearest["protected_area"], "protected_area")
                 _link_incident_site(conn, iid, sid, "nearest", nearest["protected_area"].get("distance_m"), nearest["protected_area"])
+                
+                
+                
                 conn.execute(text("""
                     UPDATE incidents
                        SET nearest_protected_id = :sid,
