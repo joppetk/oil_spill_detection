@@ -365,15 +365,22 @@ def auto_plan_response_area_dist(incident_id, decided_by=None, auto=True,
         if not inc:
             raise RuntimeError("Incident not found")
         
+        #print(inc)
+
         inc_sites = conn.execute(text("""
             SELECT incident_id,
                    distance_m,
                    snapshot
             FROM incident_sites
             WHERE incident_id = :iid
+            ORDER BY distance_m ASC NULLS LAST
+            LIMIT 1
         """), {"iid": incident_id}).mappings().one_or_none()
         if not inc_sites:
-            raise RuntimeError("Incident not found")
+            raise RuntimeError("Incident site not found")
+        
+        # This throws an error as possible multiple rows are present for inc_sites - .mappings().one_or_none()
+        print(inc_sites)
 
         # Compute area_km2: prefer footprint area, else est_area_sqkm
         area_km2 = conn.execute(text("""
@@ -412,8 +419,11 @@ def auto_plan_response_area_dist(incident_id, decided_by=None, auto=True,
         """), {"iid": incident_id}).scalar()
 
         # Compute consequence
+        
         auto_consequence = _compute_consequence_from_incident(inc_sites)
         
+
+
         # if caller passed an explicit consequence, take the stricter / higher
         if fallback_consequence is not None:
             consequence = max(int(fallback_consequence), auto_consequence)
