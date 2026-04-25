@@ -1,5 +1,5 @@
 # app_sensitive.py
-import math, os, requests
+import math, os, requests, json
 from flask import Flask, request, jsonify
 
 try:
@@ -95,48 +95,68 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
 
         ports, protected, desal = [], [], []
 
+        minx, miny, maxx, maxy = bbox_from_point(lat, lon, radius_m)
+
         # ---------- 1) PORTS: World Port Index (ArcGIS FeatureServer) ----------
         try:
             wpi_url = "https://services9.arcgis.com/j1CY4yzWfwptbTWN/arcgis/rest/services/WorldPortIndex_WFL1/FeatureServer/0/query"
             params = {
                 "where": "1=1",
-                #"geometry": f'{{"x":{lon},"y":{lat},"spatialReference":{{"wkid":4326}}}}',
                 "geometry": f"{lon},{lat}",
                 "geometryType": "esriGeometryPoint",
                 "inSR": 4326,
-                "distance": radius_m,
-                "units": "esriSRUnit_Meter",
-                "outFields": "PORT_NAME,COUNTRY,FUNCTION,ANCH_DEPTH",
-                "f": "geojson"
+                "spatialRel": "esriSpatialRelIntersects",
+                "distance": radius_km,                  # e.g. 100 for 100 km
+                "units": "esriSRUnit_Kilometer",
+                "returnGeodetic": "true",
+                "outFields": "OBJECTID,PORT_NAME,COUNTRY,LATITUDE,LONGITUDE,ANCH_DEPTH",
+                "returnGeometry": "true",
+                "outSR": 4326,
+                "f": "json"
             }
+            
             r = requests.get(wpi_url, params=params, timeout=20)
             if r.ok:
                 gj = r.json()
+                print("[sensitive][ports] feature count:", len(gj.get("features", [])))
+
                 for f in gj.get("features", []):
-                    props = f.get("properties", {})
+                    attrs = f.get("attributes", {}) or {}
+                    geom = f.get("geometry", {}) or {}
+
                     ports.append({
-                        "name": props.get("PORT_NAME") or "Unnamed port",
+                        "name": attrs.get("PORT_NAME") or "Unnamed port",
                         "type": "port",
-                        "country": props.get("COUNTRY"),
-                        "function": props.get("FUNCTION"),
-                        "depth": props.get("ANCHORAGE_DEPTH"),
-                        "geometry": f.get("geometry")
+                        "country": attrs.get("COUNTRY"),
+                        "depth": attrs.get("ANCH_DEPTH"),
+                        "geometry_center": [geom.get("x"), geom.get("y")] if geom else None,
+                        "lat": attrs.get("LATITUDE"),
+                        "lon": attrs.get("LONGITUDE"),
+                        "objectid": attrs.get("OBJECTID"),
                     })
-        except Exception:
-            pass
+
+                print("[sensitive][ports] parsed ports:", ports[:3])
+
+            print("[sensitive][ports] status:", r.status_code)
+            print("[sensitive][ports] body:", r.text[:300])
+        except Exception as e:
+            print("[sensitive][ports] failed:", repr(e))
 
         # ---------- 2) PROTECTED AREAS ----------
         # 2a) Ramsar WFS by bbox (wetlands of international importance)
         try:
             minx, miny, maxx, maxy = bbox_from_point(lat, lon, radius_m)
             wfs_url = "https://rsis.ramsar.org/geoserver/ows"
+            wfs_url = "https://rsis.ramsar.org/geoserver/wfs"
             params = {
                 "service": "WFS",
-                "version": "2.0.0",
+                #"version": "2.0.0",
+                "version": "1.0.0",
                 "request": "GetFeature",
                 "typeNames": "rsis:sites",
                 "outputFormat": "application/json",
-                "bbox": f"{minx},{miny},{maxx},{maxy},EPSG:4326"
+                #"bbox": f"{minx},{miny},{maxx},{maxy},EPSG:4326"
+                "bbox": f"{minx},{miny},{maxx},{maxy}"
             }
             r = requests.get(wfs_url, params=params, timeout=25)
             if r.ok:
@@ -150,8 +170,10 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
                         "geometry": f.get("geometry"),
                         "bbox": f.get("bbox")
                     })
-        except Exception:
-            pass
+            print("[sensitive][protected-a] status:", r.status_code)
+            print("[sensitive][protected-a] body:", r.text[:300])
+        except Exception as e:
+            print("[sensitive][protected-a] failed:", repr(e))
 
         # 2b) OSM protected areas / nature reserves (backup)
         try:
@@ -166,7 +188,13 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
             );
             out center tags;
             """
-            r = requests.post(overpass, data=q_prot.encode("utf-8"), timeout=30)
+            #r = requests.post(overpass, data=q_prot.encode("utf-8"), timeout=30)
+            r = requests.post(
+                overpass,
+                data={"data": q_prot},
+                headers={"Accept": "application/json", "User-Agent": "oil-spill-ims/1.0"},
+                timeout=30
+            )
             if r.ok:
                 data = r.json()
                 for el in data.get("elements", []):
@@ -182,8 +210,10 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
                         "designation": el.get("tags", {}).get("protect_class") or el.get("tags", {}).get("leisure"),
                         "geometry_center": center
                     })
-        except Exception:
-            pass
+            print("[sensitive][protected-b] status:", r.status_code)
+            print("[sensitive][protected-b body:", r.text[:300])
+        except Exception as e:
+            print("[sensitive][protected-b] failed:", repr(e))
 
         # ---------- 3) DESALINATION (OSM) ----------
         try:
@@ -198,7 +228,13 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
             );
             out center tags;
             """
-            r = requests.post(overpass, data=q_desal.encode("utf-8"), timeout=30)
+            #r = requests.post(overpass, data=q_desal.encode("utf-8"), timeout=30)
+            r = requests.post(
+                overpass,
+                data={"data": q_prot},
+                headers={"Accept": "application/json", "User-Agent": "oil-spill-ims/1.0"},
+                timeout=30
+            )
             if r.ok:
                 data = r.json()
                 for el in data.get("elements", []):
@@ -216,8 +252,10 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
                         "operator": tags.get("operator"),
                         "plant_type": tags.get("water_works") or tags.get("man_made")
                     })
-        except Exception:
-            pass
+            print("[sensitive][desalination] status:", r.status_code)
+            print("[sensitive][desalination] body:", r.text[:300])
+        except Exception as e:
+            print("[sensitive][desalination] failed:", repr(e))
 
         # ---------- Nearest picks ----------
         nearest = {
@@ -225,6 +263,8 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
             "protected_area": best_one(protected, lat, lon),
             "desalination": best_one(desal, lat, lon)
         }
+
+        print("sensitive_areas nearest",nearest)
 
         return {
             "query": {"lat": lat, "lon": lon, "radius_km": radius_km},
@@ -236,7 +276,12 @@ def query_sensitive_areas(lat: float, lon: float, radius_km: float = 30.0) -> di
             }
         }
     except Exception as e:
-        return jsonify({"ok": False, "error": str(e)}), 500
+        return {
+        "query": {"lat": lat, "lon": lon, "radius_km": radius_km},
+        "nearest": {"port": None, "protected_area": None, "desalination": None},
+        "lists": {"ports": [], "protected_areas": [], "desalination": []},
+        "error": str(e)
+        }
 
 # If you already have a Flask app, register the route instead of running standalone:
 """ if __name__ == "__main__":
