@@ -250,6 +250,429 @@
       .btn { min-height: 44px; }
       input, select, textarea { min-height: 44px; }
     }
+
+
+    /* =====================================================
+   Mission Planning Modal / Task Response Popup
+   Uses existing Ops Console tokens:
+   --panel, --panel-2, --border, --text, --muted,
+   --accent, --accent-2, --r-*, --shadow-*
+   ===================================================== */
+
+    /* Larger modal variant for mission planning */
+    .modal-box.mission-modal,
+    .mission-card {
+      width: min(980px, 96vw);
+      max-height: 92vh;
+      background:
+        radial-gradient(900px 500px at 10% -10%, color-mix(in oklab, var(--accent), transparent 88%), transparent 55%),
+        var(--bg-elev);
+      border: 1px solid color-mix(in oklab, var(--border), #fff 5%);
+      border-radius: var(--r-xl);
+      box-shadow: 0 28px 90px rgba(0,0,0,.48);
+      overflow: auto;
+    }
+
+    /* If you use <div class="modal-card mission-card"> instead of .modal-box */
+    .modal-card {
+      background: var(--bg-elev);
+      border: 1px solid var(--border);
+      border-radius: var(--r-xl);
+      box-shadow: var(--shadow-2);
+    }
+
+    /* Mission header */
+    .mission-header,
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: var(--space-4);
+      padding: var(--space-5);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .mission-header h2,
+    .modal-header h2 {
+      margin: 0;
+      font-size: var(--fs-20);
+      line-height: 1.2;
+      font-weight: 800;
+      letter-spacing: .2px;
+    }
+
+    .mission-header p,
+    .modal-header p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: var(--fs-13);
+    }
+
+    /* Close button compatible with either .close or .icon-btn */
+    .icon-btn,
+    .mission-close,
+    .modal-box .close {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+      background: color-mix(in oklab, var(--panel-2), #fff 4%);
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .icon-btn:hover,
+    .mission-close:hover,
+    .modal-box .close:hover {
+      color: var(--text);
+      background: color-mix(in oklab, var(--panel-2), #fff 8%);
+    }
+
+    /* Mission body */
+    .mission-body {
+      padding: var(--space-5);
+      display: grid;
+      gap: var(--space-4);
+    }
+
+    /* Main mission form grid */
+    .mission-grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: var(--space-3);
+    }
+
+    /* Default form field spans */
+    .mission-grid label,
+    .mission-field {
+      grid-column: span 6;
+      display: grid;
+      gap: 6px;
+      align-content: start;
+      color: var(--muted-2);
+      font-size: var(--fs-13);
+    }
+
+    /* Wider fields */
+    .mission-grid .span-12,
+    .mission-field.span-12 {
+      grid-column: span 12;
+    }
+
+    .mission-grid .span-8,
+    .mission-field.span-8 {
+      grid-column: span 8;
+    }
+
+    .mission-grid .span-4,
+    .mission-field.span-4 {
+      grid-column: span 4;
+    }
+
+    /* Better field appearance inside mission modal */
+    .mission-grid input,
+    .mission-grid select,
+    .mission-grid textarea {
+      background: color-mix(in oklab, var(--panel), #000 6%);
+      border: 1px solid color-mix(in oklab, var(--border), #fff 3%);
+      border-radius: var(--r-sm);
+      color: var(--text);
+    }
+
+    .mission-grid input:hover,
+    .mission-grid select:hover,
+    .mission-grid textarea:hover {
+      border-color: color-mix(in oklab, var(--border), var(--accent) 35%);
+    }
+
+    /* Small hints under fields */
+    .field-hint {
+      color: var(--muted-2);
+      font-size: var(--fs-12);
+      line-height: 1.35;
+    }
+
+    /* Mission type selector area */
+    .mission-type-wrap {
+      grid-column: span 12;
+      display: grid;
+      gap: var(--space-2);
+    }
+
+    .mission-type-select {
+      min-height: 46px;
+      font-weight: 700;
+    }
+
+    /* Optional radio/card style if you later use cards instead of dropdown */
+    .mission-type-cards {
+      grid-column: span 12;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: var(--space-3);
+    }
+
+    .mission-type-card {
+      position: relative;
+      display: grid;
+      gap: 6px;
+      padding: var(--space-3);
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      background: color-mix(in oklab, var(--panel), #fff 2%);
+      cursor: pointer;
+    }
+
+    .mission-type-card:hover {
+      border-color: color-mix(in oklab, var(--accent), var(--border) 55%);
+      background: color-mix(in oklab, var(--panel), var(--accent) 7%);
+    }
+
+    .mission-type-card input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .mission-type-card:has(input:checked) {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px hsl(var(--ring) / .20);
+      background: color-mix(in oklab, var(--panel), var(--accent) 12%);
+    }
+
+    .mission-type-title {
+      color: var(--text);
+      font-weight: 800;
+      font-size: var(--fs-14);
+    }
+
+    .mission-type-desc {
+      color: var(--muted);
+      font-size: var(--fs-12);
+    }
+
+    /* Mission summary panel */
+    .mission-summary {
+      margin-top: var(--space-2);
+      padding: var(--space-4);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      background:
+        linear-gradient(180deg,
+          color-mix(in oklab, var(--panel), #fff 3%),
+          color-mix(in oklab, var(--panel), #000 3%)
+        );
+    }
+
+    .mission-summary strong {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+      font-size: var(--fs-14);
+    }
+
+    .mission-summary strong::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px hsl(var(--ring) / .18);
+    }
+
+    .mission-summary pre {
+      margin: var(--space-3) 0 0;
+      max-height: 220px;
+      overflow: auto;
+      padding: var(--space-3);
+      border-radius: var(--r-md);
+      border: 1px solid color-mix(in oklab, var(--border), #000 8%);
+      background: color-mix(in oklab, var(--bg), #000 6%);
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    /* Mission action footer */
+    .mission-actions,
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: var(--space-2);
+      padding: var(--space-4) var(--space-5);
+      border-top: 1px solid var(--border);
+      background: color-mix(in oklab, var(--bg-elev), #000 3%);
+      position: sticky;
+      bottom: 0;
+    }
+
+    /* Compatibility if your popup buttons use these class names */
+    .primary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: var(--r-sm);
+      border: 1px solid color-mix(in oklab, var(--accent), #000 15%);
+      background: linear-gradient(180deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-1);
+    }
+
+    .secondary-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 42px;
+      padding: 10px 16px;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--border);
+      background: color-mix(in oklab, var(--panel-2), #fff 4%);
+      color: var(--text);
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: var(--shadow-1);
+    }
+
+    .primary-btn:hover,
+    .secondary-btn:hover {
+      filter: brightness(1.06);
+    }
+
+    .primary-btn:focus-visible,
+    .secondary-btn:focus-visible,
+    .icon-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px hsl(var(--ring) / .35);
+    }
+
+    /* Compact status chips inside mission modal */
+    .mission-chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mission-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 9px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: color-mix(in oklab, var(--panel-2), #fff 5%);
+      color: var(--muted);
+      font-size: var(--fs-12);
+    }
+
+    .mission-chip.good {
+      color: color-mix(in oklab, var(--good), #fff 25%);
+      border-color: color-mix(in oklab, var(--good), var(--border) 60%);
+    }
+
+    .mission-chip.warn {
+      color: color-mix(in oklab, var(--warn), #fff 20%);
+      border-color: color-mix(in oklab, var(--warn), var(--border) 60%);
+    }
+
+    .mission-chip.bad {
+      color: color-mix(in oklab, var(--bad), #fff 20%);
+      border-color: color-mix(in oklab, var(--bad), var(--border) 60%);
+    }
+
+    /* Loading state for confirm button */
+    .primary-btn.loading,
+    .btn.loading {
+      position: relative;
+      pointer-events: none;
+      opacity: .85;
+    }
+
+    .primary-btn.loading::after,
+    .btn.loading::after {
+      content: "";
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(255,255,255,.45);
+      border-top-color: #fff;
+      border-radius: 999px;
+      animation: mission-spin .8s linear infinite;
+    }
+
+    @keyframes mission-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Better modal behavior on small screens */
+    @media (max-width: 860px) {
+      .modal {
+        align-items: end;
+        place-items: end center;
+        padding: 0;
+      }
+
+      .modal-box.mission-modal,
+      .mission-card {
+        width: 100vw;
+        max-height: 92dvh;
+        border-radius: var(--r-xl) var(--r-xl) 0 0;
+      }
+
+      .mission-header,
+      .modal-header {
+        padding: var(--space-4);
+      }
+
+      .mission-body {
+        padding: var(--space-4);
+      }
+
+      .mission-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .mission-grid label,
+      .mission-field,
+      .mission-grid .span-12,
+      .mission-field.span-12,
+      .mission-grid .span-8,
+      .mission-field.span-8,
+      .mission-grid .span-4,
+      .mission-field.span-4 {
+        grid-column: auto;
+      }
+
+      .mission-type-cards {
+        grid-template-columns: 1fr;
+      }
+
+      .mission-actions,
+      .modal-actions {
+        padding: var(--space-3) var(--space-4);
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+
+      .mission-actions .btn,
+      .modal-actions .btn,
+      .primary-btn,
+      .secondary-btn {
+        width: 100%;
+      }
+    }
   </style>
 </head>
 <body>
@@ -407,6 +830,7 @@
 
             <!-- Right: Actions -->
             <div class="incident-actions" style="flex:1 1 420px; max-width:640px;">
+              <button id="btn-show-incident-polygons" class="btn btn-primary">Show Detection on Map</button>
               <div class="right" style="margin-bottom:12px"><button id="btn-task" class="btn">Task Verification</button></div>
 
               <div id="verifyPanel" class="panel" style="text-align:right">
@@ -562,6 +986,107 @@
           </div>
         </div>
         <button id="btn-rtl" class="btn btn-primary">Return Home & Land</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="missionModal" class="modal hidden">
+    <div class="modal-card mission-card">
+      <div class="modal-header">
+        <div>
+          <h2>Plan UAV Response Mission</h2>
+          <p id="missionIncidentText" class="muted">Configure mission parameters before dispatch.</p>
+        </div>
+        <button id="missionCloseBtn" class="icon-btn">×</button>
+      </div>
+
+      <div class="mission-grid">
+
+        <label>
+          Mission Type
+          <select id="missionType">
+            <option value="verify_edge_map">Verify & Edge Map</option>
+            <option value="long_corridor">Long Corridor Survey</option>
+            <option value="edge_tracking">Edge Tracking</option>
+            <option value="boom_to_coast">Boom-to-Coast Alignment</option>
+            <option value="lawn_mower">Wide Area Lawn Mower</option>
+            <option value="frequency_mapping">Mapping with Adjustable Frequency</option>
+            <option value="confirmatory_pass">Confirmatory Pass</option>
+          </select>
+        </label>
+
+        <label>
+          Assigned UAV
+          <select id="missionDrone">
+            <option value="">Auto-pick nearest idle UAV</option>
+          </select>
+        </label>
+
+        <label>
+          Purpose
+          <select id="missionPurpose">
+            <option value="verification">Verification</option>
+            <option value="monitoring">Monitoring</option>
+            <option value="mapping">Mapping</option>
+            <option value="mitigation">Mitigation Support</option>
+            <option value="confirmatory_pass">Confirmatory Pass</option>
+          </select>
+        </label>
+
+        <label>
+          Altitude AGL (m)
+          <input id="missionAgl" type="number" value="20" min="5" max="120" step="1">
+        </label>
+
+        <label>
+          Speed (m/s)
+          <input id="missionSpeed" type="number" value="4" min="1" max="15" step="0.5">
+        </label>
+
+        <label>
+          Pattern Spacing (m)
+          <input id="missionSpacing" type="number" value="50" min="10" max="500" step="5">
+        </label>
+
+        <label>
+          Photo / Sample Interval (s)
+          <input id="missionInterval" type="number" value="2" min="0.5" max="60" step="0.5">
+        </label>
+
+        <label>
+          Repeat / Pass Count
+          <input id="missionRepeat" type="number" value="1" min="1" max="10" step="1">
+        </label>
+
+        <label>
+          Payload
+          <select id="missionPayload">
+            <option value="camera_only">Camera only</option>
+            <option value="camera_thermal">Camera + thermal</option>
+            <option value="dispersant_marker">Dispersant / marker payload</option>
+            <option value="boom_guidance">Boom alignment guidance</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+
+        <label>
+          Dispatch After Saving?
+          <select id="missionDispatchNow">
+            <option value="false">No, save as planned mission</option>
+            <option value="true">Yes, save and dispatch now</option>
+          </select>
+        </label>
+
+      </div>
+
+      <div class="mission-summary">
+        <strong>Mission Summary</strong>
+        <pre id="missionSummary"></pre>
+      </div>
+
+      <div class="modal-actions">
+        <button id="missionCancelBtn" class="secondary-btn">Cancel</button>
+        <button id="missionConfirmBtn" class="primary-btn">Confirm Mission</button>
       </div>
     </div>
   </div>
