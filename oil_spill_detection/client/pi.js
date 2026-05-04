@@ -504,12 +504,58 @@ async function onCtrlMessage(ev){
       ctrl.send(JSON.stringify({type:'ack', id:m.id, ok:true}));
 
     } else if (m.cmd === 'rtl') {
-      ack(true, { accepted:true });
-      await fetch('http://127.0.0.1:8088/rtl', {
-        method:'POST', headers:{'Content-Type':'application/json','X-API-Key':'SUPERSECRET'},
-        body: JSON.stringify({ use_rtl: m.use_rtl !== false, agl: m.agl ?? 10 })
+      console.log('[rtl] received id=', m.id);
+      ack(true, {
+        accepted: true,
+        phase: 'accepted',
+        message: 'RTL accepted by Pi'
       });
-      ctrl.send(JSON.stringify({type:'ack', id:m.id, ok:true}));
+      console.log('[rtl] sent accepted ack id=', m.id);
+
+      try {
+        const r = await fetch('http://127.0.0.1:8088/rtl', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'SUPERSECRET'
+          },
+          body: JSON.stringify({
+            use_rtl: m.use_rtl !== false,
+            agl: m.agl ?? 10
+          })
+        });
+
+        const text = await r.text();
+        let js = {};
+        try {
+          js = text ? JSON.parse(text) : {};
+        } catch {
+          js = { raw: text };
+        }
+
+        if (!r.ok || js.ok === false) {
+          throw new Error(js.error || js.raw || r.statusText || 'RTL failed');
+        }
+
+        ctrl.send(JSON.stringify({
+          type: 'ack',
+          id: m.id,
+          ok: true,
+          phase: 'final',
+          done: true,
+          result: js
+        }));
+
+      } catch (e) {
+        ctrl.send(JSON.stringify({
+          type: 'ack',
+          id: m.id,
+          ok: false,
+          phase: 'final',
+          error: e.message || String(e)
+        }));
+      }
+      
 
     } else if (m.cmd === 'deploy') {
       ack(true, { accepted:true });
@@ -521,6 +567,164 @@ async function onCtrlMessage(ev){
       updateGpioHud(s.gpio);
       ctrl.send(JSON.stringify({type:'ack', id:m.id, ok:true}));
 
+    /* } else if (m.cmd === 'mission') {
+      ack(true, { accepted:true, phase: 'accepted', message: 'mission accepted by Pi' });
+
+     
+      const url = 'http://127.0.0.1:8088/mission';
+
+      const bodyText = JSON.stringify({
+        mission_type: m.mission_type,
+        polygon: m.polygon,
+        agl: m.agl ?? 20,
+        speed_mps: m.speed_mps ?? 4,
+        spacing_m: m.spacing_m ?? 50,
+        angle_deg: m.angle_deg ?? null,
+        repeat: m.repeat ?? 1,
+        photo_interval_s: m.photo_interval_s ?? null,
+        sample_interval_s: m.sample_interval_s ?? null,
+        line: m.line ?? null,
+        corridor_width_m: m.corridor_width_m ?? null,
+        pass_count: m.pass_count ?? 1
+      });
+
+      console.log('[mission] POST', url);
+      console.log('[mission] body chars:', bodyText.length);
+      console.log('[mission] polygon points:', m.polygon?.length);
+
+      let r;
+
+      try {
+        r = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': 'SUPERSECRET'
+          },
+          body: bodyText
+        });
+      } catch (e) {
+        throw new Error(`Fetch failed to ${url}: ${e.message}`);
+      }
+
+      const text = await r.text();
+      let js = {};
+
+      try {
+        js = text ? JSON.parse(text) : {};
+      } catch {
+        js = { raw: text };
+      }
+
+      if (!r.ok || js.ok === false) {
+        throw new Error(js.error || js.raw || r.statusText || 'mission failed');
+      }
+
+      ctrl.send(JSON.stringify({
+        type: 'ack',
+        id: m.id,
+        ok: true,
+        phase: 'final',
+        done: true,
+        result: js
+      }));
+ */
+      
+    } else if (m.cmd === 'mission') {
+      // 1) Tell operator immediately that command was received
+      ack(true, {
+        accepted: true,
+        phase: 'accepted',
+        message: 'mission accepted by Pi'
+      });
+
+      const url = 'http://127.0.0.1:8088/mission';
+
+      const bodyText = JSON.stringify({
+        mission_type: m.mission_type,
+        polygon: m.polygon,
+        agl: m.agl ?? 20,
+        speed_mps: m.speed_mps ?? 4,
+        spacing_m: m.spacing_m ?? 50,
+        angle_deg: m.angle_deg ?? null,
+        repeat: m.repeat ?? 1,
+        photo_interval_s: m.photo_interval_s ?? null,
+        sample_interval_s: m.sample_interval_s ?? null,
+        line: m.line ?? null,
+        corridor_width_m: m.corridor_width_m ?? null,
+        pass_count: m.pass_count ?? 1
+      });
+
+      console.log('[mission] accepted id=', m.id);
+      console.log('[mission] body chars:', bodyText.length);
+      console.log('[mission] polygon points:', m.polygon?.length);
+
+      // 2) Send progress every 10 seconds while service.py is busy
+      const progressTimer = setInterval(() => {
+        if (ctrl && ctrl.readyState === 'open') {
+          ctrl.send(JSON.stringify({
+            type: 'ack',
+            id: m.id,
+            ok: true,
+            phase: 'progress',
+            message: Date.now() + ': mission still running'
+          }));
+        }
+      }, 30_000);
+
+      // 3) Run mission asynchronously so the immediate ACK already went out
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': 'SUPERSECRET'
+        },
+        body: bodyText
+      })
+      .then(async (r) => {
+        const text = await r.text();
+
+        let js = {};
+        try {
+          js = text ? JSON.parse(text) : {};
+        } catch {
+          js = { raw: text };
+        }
+
+        if (!r.ok || js.ok === false) {
+          throw new Error(js.error || js.raw || r.statusText || 'mission failed');
+        }
+
+        if (ctrl && ctrl.readyState === 'open') {
+          ctrl.send(JSON.stringify({
+            type: 'ack',
+            id: m.id,
+            ok: true,
+            phase: 'final',
+            done: true,
+            result: js
+          }));
+        }
+      })
+      .catch((e) => {
+        if (ctrl && ctrl.readyState === 'open') {
+          ctrl.send(JSON.stringify({
+            type: 'ack',
+            id: m.id,
+            ok: false,
+            phase: 'final',
+            error: e.message || String(e)
+          }));
+        }
+      })
+      .finally(() => {
+        clearInterval(progressTimer);
+      });
+
+      // Important: return so the main onCtrlMessage handler does not continue
+      return;
+    
+      
     } else if (m.cmd === 'status') {
       ack(true, { accepted:true });
       const s = await getStatus();
