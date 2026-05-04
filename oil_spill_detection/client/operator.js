@@ -377,6 +377,35 @@ function appendDetectionLog(fc) {
   }
 }
 
+function loadDetectionFCOnMap(fc, { fit = true, log = true } = {}) {
+  if (!fc || fc.type !== 'FeatureCollection') {
+    fc = { type: 'FeatureCollection', features: [] };
+  }
+
+  if (!map) {
+    throw new Error('Map is not ready.');
+  }
+
+  ensureDetectLayers();
+
+  const src = map.getSource('detect-src');
+  if (!src) {
+    throw new Error('detect-src map source is not available.');
+  }
+
+  src.setData(fc);
+
+  if (fit) {
+    safeFitToData(fc);
+  }
+
+  if (log) {
+    appendDetectionLog(fc);
+  }
+
+  return fc.features?.length || 0;
+}
+
 // call server to preprocess latest download with SNAP graph
 btnPreproc.addEventListener('click', async () => {
   inferStatus.textContent = 'Preprocessing (SNAP)…';
@@ -777,7 +806,11 @@ async function toggleView(clientId) {
   ensureControls(tile, clientId);  // <-- add here too
   
 
-  const pc = new RTCPeerConnection({ iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }] });
+  const pc = new RTCPeerConnection({ iceServers: [
+    { urls: ['stun:stun.l.google.com:19302'] },
+    { urls: ['stun:stun1.l.google.com:19302'] }
+  ] 
+});
   
   // --- This is the WebRTC video channel ---
   pc.ontrack = (ev) => { video.srcObject = ev.streams[0]; };
@@ -802,14 +835,18 @@ async function toggleView(clientId) {
   updateClients(msg);
   
   if (msg.type === 'ack' && msg.id != null) {
-    if (msg.accepted === true || msg.phase === 'accepted') return;
+    // if (msg.accepted === true || msg.phase === 'accepted') return;
     const key = `${clientId}:${msg.id}`;
-    console.log('[ack]', clientId, msg);
+    console.log('[ack received]', key, msg);
+    console.log('[waiters]', Array.from(ctrlWaiters.keys()));
     const w = ctrlWaiters.get(key);
     // if (w) { ctrlWaiters.delete(key); w(msg.ok, msg); }
     if (w) { w(msg); return; }
+    console.warn('[ack] no waiter for', key, msg);
     return;
   }
+
+
   if (msg.type === 'telemetry' ) {
     
     upsertClientFromTelemetry(msg);
@@ -1023,7 +1060,7 @@ function sendCtrlAndWait(clientId, payload, timeoutMs = 15000, { finalOnly = fal
 
 const ctrlWaiters = new Map(); // key -> fn(msg)
 
-function sendCtrlAndWait(clientId, payload, third, fourth) {
+function sendCtrlAndWait2(clientId, payload, third, fourth) {
   const opts = (typeof third === 'number') ? { overallTimeoutMs: third, ...(fourth||{}) } : (third||{});
   const {
     overallTimeoutMs  = 120_000,   // hard cap
@@ -1055,18 +1092,164 @@ function sendCtrlAndWait(clientId, payload, third, fourth) {
     tAck     = setTimeout(() => { if (!gotAck) { clearAll(); reject(new Error('timeout (no ack)')); } }, requireAckMs);
     armProgress();
 
+    
+
     ctrlWaiters.set(key, (msg) => {
       armProgress();
-      if (msg.type === 'ack') gotAck = true;
-      if (msg.ok === false) { clearAll(); reject(new Error(msg.error || 'error')); return; }
+
+      if (msg.type === 'ack') {
+        gotAck = true;
+      }
+
+      if (msg.ok === false) {
+        clearAll();
+        reject(new Error(msg.error || 'error'));
+        return;
+      }
+
+      const isAccepted =
+        msg.accepted === true ||
+        msg.phase === 'accepted';
+
+      const isProgress =
+        msg.phase === 'progress';
+
+      const isDone = donePred(msg);
+
+      // Accepted/progress ACKs are keep-alive messages.
+      // They confirm the Pi received the command, but they should not resolve.
+      if (isAccepted || isProgress) {
+        return;
+      }
 
       if (finalOnly) {
-        if (donePred(msg)) { clearAll(); resolve(msg); }
-        // else: keep waiting
-      } else {
-        clearAll(); resolve(msg); // resolve on first ok
+        if (isDone) {
+          clearAll();
+          resolve(msg);
+          return;
+        }
+
+        // Not accepted, not progress, not done — keep waiting.
+        return;
       }
+
+      // For quick commands/status, resolve on the first real response
+      // after the accepted ACK.
+      clearAll();
+      resolve(msg);
     });
+  });
+}
+
+function sendCtrlAndWait(clientId, payload, third, fourth) {
+  const opts = (typeof third === 'number')
+    ? { overallTimeoutMs: third, ...(fourth || {}) }
+    : (third || {});
+
+  const {
+    overallTimeoutMs  = 120_000,
+    progressTimeoutMs = 60_000,
+    requireAckMs      = 60_000,
+    finalOnly         = false,
+    donePred          = (m) => !!(
+      m.done ||
+      m.complete ||
+      m.completed ||
+      m.phase === 'final' ||
+      m.state === 'done'
+    )
+  } = opts;
+
+  const id = Math.random().toString(36).slice(2, 10);
+  const out = { id, ...payload };
+  const key = `${clientId}:${id}`;
+
+  return new Promise((resolve, reject) => {
+    let gotAck = false;
+    let tOverall, tProgress, tAck;
+
+    const clearAll = () => {
+      clearTimeout(tOverall);
+      clearTimeout(tProgress);
+      clearTimeout(tAck);
+      ctrlWaiters.delete(key);
+    };
+
+    const armProgress = () => {
+      clearTimeout(tProgress);
+      tProgress = setTimeout(() => {
+        clearAll();
+        reject(new Error('timeout (no progress)'));
+      }, progressTimeoutMs);
+    };
+
+    // Register waiter BEFORE sending command
+    ctrlWaiters.set(key, (msg) => {
+      armProgress();
+
+      if (msg.type === 'ack') {
+        gotAck = true;
+      }
+
+      if (msg.ok === false) {
+        clearAll();
+        reject(new Error(msg.error || 'error'));
+        return;
+      }
+
+      const isAccepted =
+        msg.accepted === true ||
+        msg.phase === 'accepted';
+
+      const isProgress =
+        msg.phase === 'progress';
+
+      const isDone = donePred(msg);
+
+      // Accepted/progress ACKs keep the command alive,
+      // but they do not complete the Promise.
+      if (isAccepted || isProgress) {
+        return;
+      }
+
+      if (finalOnly) {
+        if (isDone) {
+          clearAll();
+          resolve(msg);
+          return;
+        }
+
+        return;
+      }
+
+      // For quick commands/status/RTL status response,
+      // resolve on the first real non-accepted response.
+      clearAll();
+      resolve(msg);
+    });
+
+    tOverall = setTimeout(() => {
+      clearAll();
+      reject(new Error('timeout'));
+    }, overallTimeoutMs);
+
+    tAck = setTimeout(() => {
+      if (!gotAck) {
+        clearAll();
+        reject(new Error('timeout (no ack)'));
+      }
+    }, requireAckMs);
+
+    armProgress();
+
+    console.log('[waiter set]', key, out);
+
+    // Send AFTER waiter is registered
+    if (!safeCtrlSend(clientId, out)) {
+      clearAll();
+      reject(new Error('ctrl not open'));
+      return;
+    }
   });
 }
 
@@ -1101,6 +1284,30 @@ const decimate = (ring, step = 3) => {
   if (!l || l[0] !== f[0] || l[1] !== f[1]) out.push(f);
   return out.length >= 4 ? out : ring;
 };
+
+const MISSION_TYPES = {
+  VERIFY_EDGE_MAP: 'verify_edge_map',
+  LONG_CORRIDOR: 'long_corridor',
+  EDGE_TRACKING: 'edge_tracking',
+  BOOM_TO_COAST: 'boom_to_coast',
+  LAWN_MOWER: 'lawn_mower',
+  FREQUENCY_MAPPING: 'frequency_mapping',
+  CONFIRMATORY_PASS: 'confirmatory_pass',
+};
+
+function missionTimeout(missionType, opts = {}) {
+  const base = {
+    verify_edge_map: 20 * 60_000,
+    long_corridor: 20 * 60_000,
+    edge_tracking: 20 * 60_000,
+    boom_to_coast: 15 * 60_000,
+    lawn_mower: 30 * 60_000,
+    frequency_mapping: 30 * 60_000,
+    confirmatory_pass: 10 * 60_000,
+  };
+
+  return base[missionType] || 15 * 60_000;
+}
 
 // --- nice wrappers around sendCtrlAndWait (robust/options-aware version)
 const ctrlOps = {
@@ -1147,6 +1354,128 @@ const ctrlOps = {
     });
   },
 
+  runMission(clientId, missionType, polygon, options = {}) {
+    const poly = decimate(polygon, options.decimateEvery || 3);
+
+    const payload = {
+      cmd: 'mission',
+      mission_type: missionType,
+      polygon: poly,
+
+      agl: options.agl ?? 20,
+      speed_mps: options.speed_mps ?? 4,
+
+      // For lawn mower / mapping
+      spacing_m: options.spacing_m ?? 50,
+      angle_deg: options.angle_deg ?? null,
+
+      // For edge tracking / repeated inspection
+      repeat: options.repeat ?? 1,
+
+      // For camera / detection frequency
+      photo_interval_s: options.photo_interval_s ?? null,
+      sample_interval_s: options.sample_interval_s ?? null,
+
+      // For boom-to-coast or corridor missions
+      line: options.line ?? null,
+      corridor_width_m: options.corridor_width_m ?? null,
+
+      // For confirmatory pass
+      pass_count: options.pass_count ?? 1,
+    };
+
+    // const timeout = missionTimeout(missionType, options);
+
+    const timeout = estimateMissionTimeoutMs({
+      polygon: poly,
+      speed_mps: options.speed_mps ?? 4,
+      repeat: options.repeat ?? 1,
+      settle_s: options.photo_interval_s ?? 1,
+    });
+
+    
+
+    return sendCtrlAndWait(clientId, payload, {
+      overallTimeoutMs: timeout,
+      progressTimeoutMs: 90_000,
+      requireAckMs: 10_000,
+      finalOnly: true,
+      donePred: CTRL_DONE,
+    });
+  },
+
+  verifyAndEdgeMap(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.VERIFY_EDGE_MAP, polygon, {
+      agl: 18,
+      speed_mps: 3,
+      repeat: 1,
+      photo_interval_s: 2,
+      ...options,
+    });
+  },
+
+  longCorridorSurvey(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.LONG_CORRIDOR, polygon, {
+      agl: 25,
+      speed_mps: 5,
+      spacing_m: 60,
+      corridor_width_m: 120,
+      photo_interval_s: 3,
+      ...options,
+    });
+  },
+
+  edgeTracking(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.EDGE_TRACKING, polygon, {
+      agl: 15,
+      speed_mps: 3,
+      repeat: 2,
+      photo_interval_s: 2,
+      ...options,
+    });
+  },
+
+  boomToCoastAlignment(clientId, polygon, coastLineOrPoint, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.BOOM_TO_COAST, polygon, {
+      agl: 15,
+      speed_mps: 3,
+      line: coastLineOrPoint,
+      photo_interval_s: 2,
+      ...options,
+    });
+  },
+
+  wideAreaLawnMower(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.LAWN_MOWER, polygon, {
+      agl: 30,
+      speed_mps: 5,
+      spacing_m: 80,
+      photo_interval_s: 3,
+      ...options,
+    });
+  },
+
+  mappingWithFrequency(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.FREQUENCY_MAPPING, polygon, {
+      agl: 25,
+      speed_mps: 4,
+      spacing_m: options.spacing_m ?? 50,
+      photo_interval_s: options.photo_interval_s ?? 1,
+      sample_interval_s: options.sample_interval_s ?? 1,
+      ...options,
+    });
+  },
+
+  confirmatoryPass(clientId, polygon, options = {}) {
+    return this.runMission(clientId, MISSION_TYPES.CONFIRMATORY_PASS, polygon, {
+      agl: 18,
+      speed_mps: 4,
+      pass_count: 2,
+      photo_interval_s: 1,
+      ...options,
+    });
+  },
+
   // duration-based; expect a final completion
   deploy(clientId, sec) {
     const durMs = Math.max(1, Number(sec)) * 1000;
@@ -1162,10 +1491,11 @@ const ctrlOps = {
   // quick command; optionally wait until landed/idle via status polling
   async rtl(clientId, { waitLanding = false, maxWaitMs = 8 * 60_000 } = {}) {
     await sendCtrlAndWait(clientId, { cmd: 'rtl', use_rtl: true }, {
-      overallTimeoutMs: 30_000,
-      progressTimeoutMs: 10_000,
-      requireAckMs: 30_000,
-      finalOnly: false,
+      overallTimeoutMs: 90_000,
+      progressTimeoutMs: 90_000,
+      requireAckMs: 10_000,
+      finalOnly: true,
+      donePred: CTRL_DONE,
     });
     if (!waitLanding) return true;
 
@@ -1173,9 +1503,16 @@ const ctrlOps = {
     const t0 = Date.now();
     for (;;) {
       const s = await sendCtrlAndWait(clientId, { cmd: 'status' }, {
-        overallTimeoutMs: 12_000, progressTimeoutMs: 6_000, requireAckMs: 0, finalOnly: false
+        overallTimeoutMs: 12_000, 
+        progressTimeoutMs: 6_000, 
+        requireAckMs: 0, 
+        finalOnly: false
       });
-      const landed = (s?.in_air === false) || (s?.flight_mode === 'HOLD' || s?.flight_mode === 'MANUAL');
+      const landed = 
+      (s?.in_air === false) || 
+      (s?.flight_mode === 'HOLD' || 
+        s?.flight_mode === 'MANUAL');
+
       if (landed) return true;
       if (Date.now() - t0 > maxWaitMs) throw new Error('RTL landing timeout');
       await new Promise(r => setTimeout(r, 5_000));
@@ -1389,6 +1726,61 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+function haversineKm2(a, b) {
+  const [lon1, lat1] = a;
+  const [lon2, lat2] = b;
+
+  const R = 6371;
+  const toRad = d => d * Math.PI / 180;
+
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+
+  const x =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+    Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) ** 2;
+
+  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
+}
+
+function estimateRouteDistanceKm(points) {
+  if (!Array.isArray(points) || points.length < 2) return 0;
+
+  let km = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    km += haversineKm2(points[i - 1], points[i]);
+  }
+
+  return km;
+}
+
+function estimateMissionTimeoutMs({
+  polygon,
+  speed_mps = 4,
+  repeat = 1,
+  settle_s = 1,
+  takeoff_s = 30,
+  minTimeoutMs = 5 * 60_000,
+  maxTimeoutMs = 45 * 60_000,
+}) {
+  const repeatCount = Math.max(1, Number(repeat) || 1);
+  const speed = Math.max(1, Number(speed_mps) || 4);
+
+  const routeKm = estimateRouteDistanceKm(polygon) * repeatCount;
+  const travelS = (routeKm * 1000) / speed;
+  const settleTotalS = polygon.length * settle_s * repeatCount;
+
+  const rawS = takeoff_s + travelS + settleTotalS;
+
+  // Safety margin: 2x plus 30 seconds
+  const timeoutMs = Math.ceil((rawS * 2 + 30) * 1000);
+
+  return Math.min(maxTimeoutMs, Math.max(minTimeoutMs, timeoutMs));
+}
+
 function kmToM(km) { return km * 1000; }
 
 function minDistToRingMeters(lat, lon, ring /* [[lat,lon],...] */) {
@@ -1441,10 +1833,28 @@ async function maybeFireArrival(iid, clientId, distM) {
   }
 }
 
+function lonLatRingToLatLonRing(ring) {
+  if (!Array.isArray(ring)) return [];
+  return ring.map(([lon, lat]) => [lat, lon]);
+}
+
 function checkArrivalAfterTelemetry(id) {
   // called after we upsert clients[id]
   if (!clients[id]) return;
   const { lat, lon } = clients[id] || {};
+
+  console.log('[arrival check]', {
+    telemetryId: id,
+    lat,
+    lon,
+    watchers: Array.from(arrivalWatchers.values()).map(w => ({
+      clientId: w.clientId,
+      mode: w.mode,
+      fired: w.fired,
+      thresholdM: w.thresholdM
+    }))
+  });
+  
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
   for (const [key, w] of arrivalWatchers) {
@@ -1466,7 +1876,7 @@ function checkArrivalAfterTelemetry(id) {
   }
 }
 
-function waitForArrival(iid, clientId, { maxWaitMs = 5*60_000 } = {}) {
+function waitForArrival2(iid, clientId, { maxWaitMs = 5*60_000 } = {}) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => {
       cleanup();
@@ -1482,6 +1892,31 @@ function waitForArrival(iid, clientId, { maxWaitMs = 5*60_000 } = {}) {
       clearTimeout(t);
       document.removeEventListener('uav-arrived', onEvt);
     };
+    document.addEventListener('uav-arrived', onEvt);
+  });
+}
+
+function waitForArrivalAny(iid, clientIds, { maxWaitMs = 5 * 60_000 } = {}) {
+  const ids = new Set(clientIds.filter(Boolean));
+
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => {
+      cleanup();
+      reject(new Error(`arrival timeout for ${Array.from(ids).join(', ')}`));
+    }, maxWaitMs);
+
+    const onEvt = (e) => {
+      if (e.detail?.iid === iid && ids.has(e.detail?.clientId)) {
+        cleanup();
+        resolve(e.detail);
+      }
+    };
+
+    const cleanup = () => {
+      clearTimeout(t);
+      document.removeEventListener('uav-arrived', onEvt);
+    };
+
     document.addEventListener('uav-arrived', onEvt);
   });
 }
@@ -1513,6 +1948,49 @@ function extractIncidentLL(incident) {
     if (n) return { lat: sy/n, lon: sx/n };
   }
   return null;
+}
+
+function extractIncidentPolygon(incident) {
+  if (!incident) return null;
+
+  // Case 1: incident.footprint is GeoJSON Polygon
+  if (incident.footprint?.type === 'Polygon') {
+    return incident.footprint.coordinates?.[0] || null;
+  }
+
+  // Case 2: incident.polygon is GeoJSON Polygon
+  if (incident.polygon?.type === 'Polygon') {
+    return incident.polygon.coordinates?.[0] || null;
+  }
+
+  // Case 3: incident.geometry is GeoJSON Polygon
+  if (incident.geometry?.type === 'Polygon') {
+    return incident.geometry.coordinates?.[0] || null;
+  }
+
+  // Case 4: detection polygon stored as GeoJSON string
+  try {
+    if (typeof incident.footprint === 'string') {
+      const g = JSON.parse(incident.footprint);
+      if (g.type === 'Polygon') return g.coordinates?.[0] || null;
+    }
+  } catch {}
+
+  // Fallback: make small square around centroid
+  const c = extractIncidentLL(incident);
+  if (!c) return null;
+
+  const lat = c.lat;
+  const lon = c.lon;
+  const d = 0.002; // rough fallback box
+
+  return [
+    [lon - d, lat - d],
+    [lon + d, lat - d],
+    [lon + d, lat + d],
+    [lon - d, lat + d],
+    [lon - d, lat - d],
+  ];
 }
 
 function getClientIdsFromList(listEl) {
@@ -1784,7 +2262,8 @@ const DetectionsAPI = {
         // Optional: if org_id is required server-side and no DEFAULT_ORG_ID:
         // 'X-Org-Id': 'YOUR-ORG-UUID',
       },
-      body: JSON.stringify({ fc, ...meta }),
+      //body: JSON.stringify({ fc, ...meta }),
+      body: JSON.stringify({ fc, meta }),
     });
     const txt = await r.text();
     if (!r.ok) throw new Error(`ingest failed ${r.status} ${r.statusText}: ${txt.slice(0,200)}`);
@@ -1811,7 +2290,7 @@ const IncidentsAPI = {
     if (!j.ok) throw new Error(j.error || 'Incident not found');
     return j;
   },
-  async createFromDetection(payload) {
+  /* async createFromDetection(payload) {
     const r = await fetch(`${API_BASE}/api/incidents/from-detection`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify(payload)
@@ -1821,6 +2300,68 @@ const IncidentsAPI = {
     const j = JSON.parse(txt);
     if (!j.ok) throw new Error(j.error || 'Create incident failed');
     return j.incident;
+  } */
+  async createFromDetection(payload) {
+    console.log('[createFromDetection] payload =>', payload);
+
+    try {
+      const r = await fetch(`${API_BASE}/api/incidents/from-detection`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      console.log('[createFromDetection] HTTP =>', {
+        status: r.status,
+        statusText: r.statusText,
+        ok: r.ok
+      });
+
+      const txt = await r.text();
+      console.log('[createFromDetection] raw response =>', txt);
+
+      if (!r.ok) {
+        console.error('[createFromDetection] request failed =>', {
+          status: r.status,
+          statusText: r.statusText,
+          body: txt
+        });
+        throw new Error(`Create incident failed: ${r.status} ${r.statusText} ${txt.slice(0, 300)}`);
+      }
+
+      let j;
+      try {
+        j = JSON.parse(txt);
+      } catch (e) {
+        console.error('[createFromDetection] JSON parse failed =>', e, txt);
+        throw new Error(`Create incident failed: bad JSON response: ${txt.slice(0, 300)}`);
+      }
+
+      console.log('[createFromDetection] parsed JSON =>', j);
+
+      if (!j.ok) {
+        console.error('[createFromDetection] API returned ok:false =>', j);
+        throw new Error(j.error || 'Create incident failed');
+      }
+
+      console.log('[createFromDetection] incident created =>', j.incident);
+      return j.incident;
+
+    } catch (err) {
+      console.error('[createFromDetection] exception =>', err);
+      throw err;
+    }
+  },
+
+  async getIncidentDetections(id) {
+    const r = await fetch(`${API_BASE}/api/incidents/${id}/detections`);
+    const j = await r.json();
+
+    if (!r.ok || !j.ok) {
+      throw new Error(j.error || 'Failed to load incident detections');
+    }
+
+    return j.fc || { type: 'FeatureCollection', features: [] };
   },
   async triage (incidentId) {
     const r = await fetch(`${API_BASE}/api/incidents/${incidentId}/triage`, { method: 'POST' });
@@ -1902,10 +2443,295 @@ const IncidentsAPI = {
   },
 };
 
+const MissionsAPI = {
+
+  /* async createMission(data) {
+    const res = await fetch(`${API_BASE}/api/missions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json'  },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || 'Failed to create mission');
+    }
+
+    return await res.json();
+  },
+
+  async updateMissionStatus(missionId, status) {
+    const res = await fetch(`${API_BASE}/api/missions/${missionId}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || 'Failed to update mission status');
+    }
+
+    return await res.json();
+  } */
+  async createMission(data) {
+    const res = await fetch(`${API_BASE}/api/missions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+
+    const js = await res.json().catch(() => ({}));
+    if (!res.ok || js.ok === false) {
+      throw new Error(js.error || 'Failed to create mission');
+    }
+
+    return js;
+  },
+
+  async updateMissionStatus(missionId, status, details = {}) {
+    const res = await fetch(`${API_BASE}/api/missions/${missionId}/status`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, details }),
+    });
+
+    const js = await res.json().catch(() => ({}));
+    if (!res.ok || js.ok === false) {
+      throw new Error(js.error || 'Failed to update mission status');
+    }
+
+    return js;
+  }
+};
+
+async function sendRtlFireAndPoll(clientId, { maxWaitMs = 8 * 60_000 } = {}) {
+  safeCtrlSend(clientId, {
+    id: Math.random().toString(36).slice(2, 10),
+    cmd: 'rtl',
+    use_rtl: true
+  });
+
+  const t0 = Date.now();
+
+  for (;;) {
+    await new Promise(r => setTimeout(r, 5_000));
+
+    const s = await ctrlOps.getStatus(clientId);
+
+    const returning =
+      String(s?.flight_mode || '').toUpperCase().includes('RETURN') ||
+      String(s?.flight_mode || '').toUpperCase().includes('RTL');
+
+    const landed =
+      s?.in_air === false ||
+      s?.flight_mode === 'HOLD' ||
+      s?.flight_mode === 'MANUAL';
+
+    if (returning || landed) {
+      return true;
+    }
+
+    if (Date.now() - t0 > maxWaitMs) {
+      throw new Error('RTL sent but return/landing not confirmed by status');
+    }
+  }
+}
+
+async function executeMissionWithLifecycle({
+  missionId,
+  incidentId,
+  clientId,
+  missionType,
+  polygon,
+  agl,
+  speed_mps,
+  repeat = 1,
+  photo_interval_s = 2,
+  dist_km,
+  arrivalMode = 'centroid',
+  centroid = null,
+  waitLanding = true,
+  maxMissionMinutes = 1000,
+  autoRtl = true,
+}) {
+  const droneStatus = await ctrlOps.getStatus(clientId);
+  const droneId = droneStatus?.droneId || clientId;
+
+  const feasibility = estimateMissionFeasibility({
+    dist_km,
+    polygon,
+    speed_mps,
+    repeat,
+    settle_s: photo_interval_s,
+    maxDistanceKm: 100,
+    maxMissionMinutes,
+  });
+
+  if (!feasibility.ok) {
+    await MissionsAPI.updateMissionStatus(missionId, 'failed', {
+      reason: feasibility.reason,
+      feasibility,
+    });
+    throw new Error(feasibility.reason);
+  }
+
+  let missionCompleted = false;
+  let missionUncertain = false;
+
+  await MissionsAPI.updateMissionStatus(missionId, 'dispatched', {
+    client_id: droneId,
+    feasibility,
+  });
+
+  try {
+    await ctrlOps.armTakeoff(clientId, agl);
+
+    await MissionsAPI.updateMissionStatus(missionId, 'enroute', {
+      client_id: droneId,
+      agl_m: agl,
+      speed_mps,
+    });
+
+    const watcherIds = Array.from(new Set([
+      clientId,
+      droneId,
+    ].filter(Boolean)));
+
+    const edgeArrivalRing = lonLatRingToLatLonRing(polygon);
+
+    for (const wid of watcherIds) {
+      if (arrivalMode === 'centroid' && centroid) {
+        startArrivalWatcher(incidentId, wid, {
+          mode: 'centroid',
+          centroid,
+          thresholdM: 120,
+        });
+      } else {
+        startArrivalWatcher(incidentId, wid, {
+          mode: 'edge',
+          polygon,
+          thresholdM: 120,
+        });
+      }
+    }
+
+    const arrivalPromise = waitForArrivalAny(incidentId, watcherIds, {
+      maxWaitMs: Math.max(2 * 60_000, feasibility.estimated_total_s * 500),
+    })
+      .then(async (arrival) => {
+        await MissionsAPI.updateMissionStatus(missionId, 'arrived_on_scene', {
+          client_id: arrival.clientId,
+          arrival,
+        });
+        return arrival;
+      })
+      .catch((e) => {
+        console.warn('arrival watcher warning:', e);
+        return null;
+      });
+
+    await MissionsAPI.updateMissionStatus(missionId, 'active', {
+      client_id: droneId,
+      message: 'Mission command active',
+    });
+
+    await ctrlOps.runMission(clientId, missionType, polygon, {
+      agl,
+      speed_mps,
+      repeat,
+      photo_interval_s,
+    });
+
+    missionCompleted = true;
+
+    // await arrivalPromise;
+
+    arrivalPromise.catch(e => {
+      console.warn('arrival watcher warning:', e);
+    });
+
+    await MissionsAPI.updateMissionStatus(missionId, 'completed', {
+      client_id: droneId,
+      message: 'Mission command completed',
+    });
+
+  } catch (missionErr) {
+    const msg = missionErr.message || String(missionErr);
+
+    // Important: browser timeout does NOT always mean drone mission failed.
+    if (
+      msg.includes('timeout (no progress)') ||
+      msg.includes('timeout (no ack)') ||
+      msg === 'timeout'
+    ) {
+      missionUncertain = true;
+
+      await MissionsAPI.updateMissionStatus(missionId, 'active', {
+        client_id: droneId,
+        warning: 'Operator lost command progress, but mission may still be running.',
+        error: msg,
+      });
+
+      console.warn('[mission] command tracking timeout; NOT sending RTL automatically:', msg);
+
+      return {
+        ok: false,
+        uncertain: true,
+        message: msg,
+      };
+    }
+
+    await MissionsAPI.updateMissionStatus(missionId, 'failed', {
+      client_id: droneId,
+      error: msg,
+    });
+
+    throw missionErr;
+
+  }
+
+  // RTL only after confirmed mission completion
+  if (autoRtl && missionCompleted && !missionUncertain) {
+    try {
+      await MissionsAPI.updateMissionStatus(missionId, 'returning', {
+        client_id: droneId,
+        reason: 'Automatic RTL after completed mission',
+      });
+
+      await new Promise(r => setTimeout(r, 1000));
+
+      await ctrlOps.rtl(clientId, {
+        waitLanding,
+        maxWaitMs: 8 * 60_000,
+      });
+
+      await MissionsAPI.updateMissionStatus(missionId, waitLanding ? 'landed' : 'returning', {
+        client_id: droneId,
+        message: waitLanding ? 'UAV landed after RTL' : 'RTL command sent',
+      });
+
+    } catch (rtlErr) {
+      await MissionsAPI.updateMissionStatus(missionId, 'rtl_failed', {
+        client_id: droneId,
+        error: rtlErr.message || String(rtlErr),
+      });
+
+      console.warn('RTL failed:', rtlErr);
+      alert(`Mission completed, but RTL failed: ${rtlErr.message || rtlErr}`);
+    }
+  }
+
+  return { ok: true };
+}
+
 const IncidentsUI = (() => {
   // DOM refs (lazy)
   let tableBody, filterSel, refreshBtn, detailBox, titleEl, stateEl, priorityEl, verifEl, areaEl,protEl,portEl,desalEl, distEl, tierLevelEl,incidentDescriptionEl,tlEl, taskBtn, confirmBtn, refuteBtn, unsureBtn, planBtn, responseBtn,closeBtn,rulesBody;
   let initialised = false;
+  let showPolyBtn;
 
   function $(id) { return document.getElementById(id); } 
   function setStatus(msg) {
@@ -2016,10 +2842,65 @@ const IncidentsUI = (() => {
         tlEl.appendChild(li);
       });
 
-      
+      if (showPolyBtn) {
+      showPolyBtn.disabled = false;
+
+      showPolyBtn.onclick = async () => {
+        try {
+          if (!currentIncident?.id) {
+            alert('No active incident selected.');
+            return;
+          }
+
+          showPolyBtn.disabled = true;
+          showPolyBtn.textContent = 'Loading polygons…';
+
+          const fc = await IncidentsAPI.getIncidentDetections(currentIncident.id);
+
+          if (!fc.features || fc.features.length === 0) {
+            const polygon = extractIncidentPolygon(currentIncident);
+
+            if (!polygon || polygon.length < 4) {
+              alert('No detection polygons or incident footprint found for this incident.');
+              return;
+            }
+
+            fc.features = [{
+              type: 'Feature',
+              geometry: {
+                type: 'Polygon',
+                coordinates: [polygon]
+              },
+              properties: {
+                incident_id: currentIncident.id,
+                source: 'incident_footprint'
+              }
+            }];
+          }
+
+          document.querySelector('nav .tab[data-tab="map"]')?.click();
+
+          setTimeout(() => {
+            try {
+              map?.resize();
+              const count = loadDetectionFCOnMap(fc, { fit: true, log: true });
+              console.log(`[incident detections] loaded ${count} polygon(s) for incident`, currentIncident.id);
+            } catch (e) {
+              alert(e.message || String(e));
+            }
+          }, 100);
+
+        } catch (e) {
+          alert(e.message || String(e));
+        } finally {
+          showPolyBtn.disabled = false;
+          showPolyBtn.textContent = 'Show Detection on Map';
+        }
+      };
+    }
       
 
-      if (taskBtn) {
+      /* if (taskBtn) {
         // enable/disable depending on stage
         //Detection, Triage, VerificationTasked, VerificationResult, ResponsePlanning, ResponseActive, ResponseComplete
         //taskBtn.disabled = !['Triage','VerificationTasked','VerificationResult','Detection'].includes(incident.state);
@@ -2043,13 +2924,58 @@ const IncidentsUI = (() => {
             const tripSeconds = 1000 * dist_km / cruiseSpeed_km_per_sec;
 
             if (dist_km > 100) throw new Error('All available UAV are too far.');
-            await deployForVerification(mode, cid, agl, tripSeconds); //0.004 is the drone speed in km/second
+            // await deployForVerification(mode, cid, agl, tripSeconds); //0.004 is the drone speed in km/second
+
+            await deployForVerification(mode, cid, agl, tripSeconds, dist_km);
+
+            await ctrlOps.rtl(cid, {
+              waitLanding: true,
+              maxWaitMs: tripSeconds
+            }); 
 
             await refreshList();
             await openIncident(currentIncident.id);
             
           } catch (e) {
             alert(e.message);
+          } finally {
+            taskBtn.disabled = false;
+          }
+        };
+      } */
+
+      if (taskBtn) {
+        taskBtn.disabled = !['Triage'].includes(incident.state);
+
+        taskBtn.onclick = async () => {
+          try {
+            const choice = await pickNearestIdleClient(listEl, currentIncident?.id || null);
+
+            if (!choice) {
+              alert('No suitable client found.');
+              return;
+            }
+
+            const { cid, dist_km } = choice;
+
+            taskBtn.disabled = true;
+
+            const mode = 'centroid';
+            const agl = 10;
+            const cruiseSpeed_km_per_sec = 0.0040;
+            const tripSeconds = 1000 * dist_km / cruiseSpeed_km_per_sec;
+
+            if (dist_km > 100) {
+              throw new Error('All available UAV are too far.');
+            }
+
+            await deployForVerification(mode, cid, agl, tripSeconds, dist_km);
+
+            await refreshList();
+            await openIncident(currentIncident.id);
+
+          } catch (e) {
+            alert(e.message || String(e));
           } finally {
             taskBtn.disabled = false;
           }
@@ -2171,11 +3097,11 @@ const IncidentsUI = (() => {
         };
       }
 
-      if (responseBtn) {
+      /*if (responseBtn) {
         
         responseBtn.disabled = !['ResponseActive'].includes(incident.state);
         
-        responseBtn.onclick = async () => {
+         responseBtn.onclick = async () => {
           try {
             const choice = await pickNearestIdleClient(listEl, currentIncident?.id || null);
             if (!choice) {                     // <? guard for null
@@ -2203,8 +3129,29 @@ const IncidentsUI = (() => {
           } finally {
             responseBtn.disabled = false;
           }
-        };
-      }
+        }; */
+
+        if (responseBtn) { 
+          responseBtn.disabled = !['ResponseActive'].includes(incident.state);
+
+          responseBtn.onclick = async () => {
+            try {
+              if (!currentIncident?.id) {
+                alert('No active incident selected.');
+                return;
+              }
+
+              await MissionUI.open({
+                incident: currentIncident,
+                listEl
+              });
+
+            } catch (e) {
+              alert(e.message || String(e));
+            }
+          };
+        }
+      
 
       if (closeBtn) {
         // enable/disable depending on stage
@@ -2244,7 +3191,7 @@ const IncidentsUI = (() => {
     }
   }
 
-  async function deployForVerification(mode, clientId, aglMeters, tripSeconds) {
+  /* async function deployForVerification(mode, clientId, aglMeters, tripSeconds) {
     // mode: 'edge' | 'centroid'
     // clientId: the UAV connection id
     // aglMeters: number
@@ -2307,9 +3254,180 @@ const IncidentsUI = (() => {
     
 
     return { ok: true };
-  }
+  } */
 
-  
+  /* async function deployForVerification(mode, clientId, aglMeters, tripSeconds) {
+    // mode: 'edge' | 'centroid'
+    // clientId: UAV connection id
+    // aglMeters: altitude AGL
+
+    if (!currentIncident) throw new Error('Open an incident first.');
+    if (!clientId) throw new Error('Pick a UAV/client.');
+    if (!['edge', 'centroid'].includes(mode)) {
+      throw new Error('mode must be edge|centroid');
+    }
+
+    // Existing polygonForIncident appears to produce [[lat, lon], ...]
+    const polyLatLon = polygonForIncident(currentIncident, 150);
+    if (!polyLatLon || polyLatLon.length < 4) {
+      throw new Error('No valid footprint/centroid to task.');
+    }
+
+    // Convert to GeoJSON-style [[lon, lat], ...] for ctrlOps.runMission()
+    const polyLonLat = polyLatLon.map(([lat, lon]) => [lon, lat]);
+
+    // 1) Arm/takeoff first
+    await ctrlOps.armTakeoff(clientId, aglMeters);
+
+    const s = await ctrlOps.getStatus(clientId);
+    const droneId = s?.droneId || clientId;
+
+    // 2) Mark incident as VerificationTasked + log task server-side
+    // Keep the original [[lat, lon], ...] if your existing backend expects that.
+    await IncidentsAPI.taskVerify(currentIncident.id, {
+      client_id: droneId,
+      mode,
+      agl_m: aglMeters,
+      polygon: polyLatLon,
+    });
+
+    // 3) Start arrival watcher
+    const tgt = incidentTargetLatLon(currentIncident);
+
+    if (mode === 'centroid' && tgt) {
+      startArrivalWatcher(currentIncident.id, droneId, {
+        mode: 'centroid',
+        centroid: tgt,
+        thresholdM: 60,
+      });
+    } else if (mode === 'edge' && Array.isArray(polyLatLon)) {
+      startArrivalWatcher(currentIncident.id, droneId, {
+        mode: 'edge',
+        polygon: polyLatLon,
+        thresholdM: 60,
+      });
+    }
+
+    // 4) Replace gotoCentroid/gotoEdge with runMission()
+    const missionType =
+      mode === 'edge'
+        ? MISSION_TYPES.VERIFY_EDGE_MAP
+        : MISSION_TYPES.CONFIRMATORY_PASS;
+
+    await ctrlOps.runMission(clientId, missionType, polyLonLat, {
+      agl: aglMeters,
+      speed_mps: 3,
+      spacing_m: 50,
+      repeat: 1,
+      photo_interval_s: 2,
+      pass_count: 1,
+    });
+
+    // 5) Wait until arrived using telemetry watcher, with fallback status polling
+    try {
+      await waitForArrival(currentIncident.id, droneId, {
+        maxWaitMs: tripSeconds,
+      });
+    } catch {
+      const t0 = Date.now();
+
+      for (;;) {
+        const st = await ctrlOps.getStatus(clientId);
+
+        const finished =
+          st?.mission?.state === 'finished' ||
+          st?.reachPolygon === true ||
+          st?.in_air === false ||
+          st?.status === 'idle' ||
+          st?.phase === 'final';
+
+        if (finished) break;
+
+        if (Date.now() - t0 > 5 * 60_000) {
+          throw new Error('mission not finished (poll timeout)');
+        }
+
+        await new Promise(r => setTimeout(r, 5_000));
+      }
+    }
+
+    return { ok: true };
+  } */
+
+  async function deployForVerification(mode, clientId, aglMeters, tripSeconds, dist_km = 0) {
+    if (!currentIncident) throw new Error('Open an incident first.');
+    if (!clientId) throw new Error('Pick a UAV/client.');
+    if (!['edge', 'centroid'].includes(mode)) throw new Error('mode must be edge|centroid');
+
+    const polyLatLon = polygonForIncident(currentIncident, 150);
+    if (!polyLatLon || polyLatLon.length < 4) {
+      throw new Error('No valid footprint/centroid to task.');
+    }
+
+    // runMission expects [lon, lat]
+    const polyLonLat = polyLatLon.map(([lat, lon]) => [lon, lat]);
+
+    const s = await ctrlOps.getStatus(clientId);
+    const droneId = s?.droneId || clientId;
+
+    await IncidentsAPI.taskVerify(currentIncident.id, {
+      client_id: droneId,
+      mode,
+      agl_m: aglMeters,
+      polygon: polyLatLon,
+    });
+
+    const missionType =
+      mode === 'edge'
+        ? MISSION_TYPES.VERIFY_EDGE_MAP
+        : MISSION_TYPES.CONFIRMATORY_PASS;
+
+    const centroid = incidentTargetLatLon(currentIncident);
+
+    const created = await MissionsAPI.createMission({
+      incident_id: currentIncident.id,
+      purpose: 'verification',
+      tier_level: currentIncident.tier_level || currentIncident.tier || null,
+      assigned_to: droneId,
+      mission_type: missionType,
+      status: 'assigned',
+      route: {
+        polygon: polyLonLat,
+      },
+      waypoint: {
+        centroid,
+      },
+      payload: {
+        mode,
+        agl_m: aglMeters,
+        speed_mps: 3,
+        repeat: 1,
+        photo_interval_s: 2,
+        auto_rtl: true,
+      },
+    });
+
+    const missionId = created?.mission?.id;
+    if (!missionId) throw new Error('Mission was created but no mission ID was returned.');
+
+    await executeMissionWithLifecycle({
+      missionId,
+      incidentId: currentIncident.id,
+      clientId,
+      missionType,
+      polygon: polyLonLat,
+      agl: aglMeters,
+      speed_mps: 3,
+      repeat: 1,
+      photo_interval_s: 2,
+      dist_km,
+      arrivalMode: mode,
+      centroid,
+      waitLanding: true,
+    });
+
+    return { ok: true };
+  }
 
   
   async function refreshRules() {
@@ -2360,6 +3478,8 @@ const IncidentsUI = (() => {
   }
   return String(val);
 }
+
+
 
 function renderResponsePlanBox(resp) {
   const box = document.getElementById('response-plan-body');
@@ -2512,6 +3632,7 @@ function renderResponsePlanBox(resp) {
     responseBtn = document.getElementById('btn-response');
     closeBtn = document.getElementById('btn-close');
     rulesBody = document.querySelector('#rules-table tbody');
+    showPolyBtn = document.getElementById('btn-show-incident-polygons');
 
     attachEvents();
     await refreshList();
@@ -2524,6 +3645,532 @@ function renderResponsePlanBox(resp) {
     openIncident,
   };
 })();
+
+function estimateMissionFeasibility({
+  dist_km,
+  polygon,
+  speed_mps = 4,
+  repeat = 1,
+  settle_s = 1,
+  takeoff_s = 45,
+  rtlMultiplier = 1.0,
+  maxDistanceKm = 100,
+  maxMissionMinutes = 1000,
+}) {
+  const oneWayTravelS = (dist_km * 1000) / Math.max(1, speed_mps);
+
+  const routeKm = estimateRouteDistanceKm(polygon || []) * Math.max(1, repeat);
+  const routeTravelS = (routeKm * 1000) / Math.max(1, speed_mps);
+
+  const settleTotalS = (polygon?.length || 0) * settle_s * Math.max(1, repeat);
+
+  const rtlS = oneWayTravelS * rtlMultiplier;
+
+  const totalS =
+    takeoff_s +
+    oneWayTravelS +
+    routeTravelS +
+    settleTotalS +
+    rtlS +
+    60; // safety buffer
+
+  const totalMin = totalS / 60;
+
+  const tooFar = dist_km > maxDistanceKm;
+  const tooLong = totalMin > maxMissionMinutes;
+
+  return {
+    ok: !tooFar && !tooLong,
+    tooFar,
+    tooLong,
+    dist_km,
+    routeKm,
+    estimated_total_s: totalS,
+    estimated_total_min: totalMin,
+    maxDistanceKm,
+    maxMissionMinutes,
+    reason: tooFar
+      ? `UAV is too far: ${dist_km.toFixed(1)} km > ${maxDistanceKm} km`
+      : tooLong
+        ? `Estimated mission is too long: ${totalMin.toFixed(1)} min > ${maxMissionMinutes} min`
+        : 'OK'
+  };
+}
+
+async function getClientDistanceToIncident(listEl, incident, clientId) {
+  const tgt = extractIncidentLL(incident);
+  if (!tgt) return null;
+
+  const s = await ctrlOps.getStatus(clientId);
+
+  if (!Number.isFinite(s?.lat) || !Number.isFinite(s?.lon)) {
+    return null;
+  }
+
+  return haversineKm(s.lat, s.lon, tgt.lat, tgt.lon);
+}
+
+const MissionUI = {
+  modal: null,
+  activeIncident: null,
+  activeListEl: null,
+
+  init() {
+    this.modal = document.getElementById('missionModal');
+
+    if (!this.modal) {
+      console.warn('[MissionUI] missionModal not found. Mission popup disabled.');
+      return;
+    }
+
+    document.getElementById('missionCloseBtn')?.addEventListener('click', () => this.close());
+    document.getElementById('missionCancelBtn')?.addEventListener('click', () => this.close());
+
+    const fields = [
+      'missionType',
+      'missionDrone',
+      'missionPurpose',
+      'missionAgl',
+      'missionSpeed',
+      'missionSpacing',
+      'missionInterval',
+      'missionRepeat',
+      'missionPayload',
+      'missionDispatchNow',
+    ];
+
+    for (const id of fields) {
+      document.getElementById(id)?.addEventListener('input', () => this.updateSummary());
+      document.getElementById(id)?.addEventListener('change', () => this.updateSummary());
+    }
+
+    document.getElementById('missionType')?.addEventListener('change', () => {
+      this.applyMissionDefaults();
+      this.updateSummary();
+    });
+
+    document.getElementById('missionConfirmBtn')?.addEventListener('click', () => this.confirm());
+  },
+
+  async open({ incident, listEl }) {
+    this.activeIncident = incident;
+    this.activeListEl = listEl;
+
+    document.getElementById('missionIncidentText').textContent =
+      `Incident: ${incident?.title || incident?.id || 'Current incident'}`;
+
+    await this.populateDroneDropdown(listEl);
+
+    this.applyMissionDefaults();
+    this.updateSummary();
+
+    // this.modal.classList.remove('hidden');
+
+    if (!this.modal) {
+      throw new Error('missionModal not found. Check that the mission modal HTML exists in operator.html.');
+    }
+
+    this.modal.classList.remove('hidden');
+  },
+
+  close() {
+    this.modal.classList.add('hidden');
+    this.activeIncident = null;
+    this.activeListEl = null;
+  },
+
+  async populateDroneDropdown(listEl) {
+    const droneSelect = document.getElementById('missionDrone');
+    if (!droneSelect) return;
+
+    droneSelect.innerHTML = `<option value="">Auto-pick nearest idle UAV</option>`;
+
+    const clientIds = getClientIdsFromList(listEl);
+
+    for (const cid of clientIds) {
+      try {
+        const s = await ctrlOps.getStatus(cid);
+
+        const labelParts = [cid];
+
+        if (s?.status) labelParts.push(`status: ${s.status}`);
+        if (s?.battery_pct != null) labelParts.push(`battery: ${s.battery_pct}%`);
+        if (s?.lat != null && s?.lon != null) labelParts.push(`GPS OK`);
+
+        const opt = document.createElement('option');
+        opt.value = cid;
+        opt.textContent = labelParts.join(' | ');
+        droneSelect.appendChild(opt);
+
+      } catch (e) {
+        const opt = document.createElement('option');
+        opt.value = cid;
+        opt.textContent = `${cid} | status unavailable`;
+        droneSelect.appendChild(opt);
+      }
+    }
+  },
+
+  applyMissionDefaults() {
+    const missionType = document.getElementById('missionType')?.value;
+
+    const defaults = {
+      verify_edge_map: {
+        purpose: 'verification',
+        agl: 18,
+        speed: 3,
+        spacing: 50,
+        interval: 2,
+        repeat: 1,
+        payload: 'camera_only',
+      },
+      long_corridor: {
+        purpose: 'monitoring',
+        agl: 25,
+        speed: 5,
+        spacing: 60,
+        interval: 3,
+        repeat: 1,
+        payload: 'camera_only',
+      },
+      edge_tracking: {
+        purpose: 'monitoring',
+        agl: 15,
+        speed: 3,
+        spacing: 50,
+        interval: 2,
+        repeat: 2,
+        payload: 'camera_only',
+      },
+      boom_to_coast: {
+        purpose: 'mitigation',
+        agl: 15,
+        speed: 3,
+        spacing: 50,
+        interval: 2,
+        repeat: 1,
+        payload: 'boom_guidance',
+      },
+      lawn_mower: {
+        purpose: 'mapping',
+        agl: 30,
+        speed: 5,
+        spacing: 80,
+        interval: 3,
+        repeat: 1,
+        payload: 'camera_only',
+      },
+      frequency_mapping: {
+        purpose: 'mapping',
+        agl: 25,
+        speed: 4,
+        spacing: 50,
+        interval: 1,
+        repeat: 1,
+        payload: 'camera_only',
+      },
+      confirmatory_pass: {
+        purpose: 'confirmatory_pass',
+        agl: 18,
+        speed: 4,
+        spacing: 50,
+        interval: 1,
+        repeat: 2,
+        payload: 'camera_only',
+      },
+    };
+
+    const d = defaults[missionType];
+    if (!d) return;
+
+    document.getElementById('missionPurpose').value = d.purpose;
+    document.getElementById('missionAgl').value = d.agl;
+    document.getElementById('missionSpeed').value = d.speed;
+    document.getElementById('missionSpacing').value = d.spacing;
+    document.getElementById('missionInterval').value = d.interval;
+    document.getElementById('missionRepeat').value = d.repeat;
+    document.getElementById('missionPayload').value = d.payload;
+  },
+
+  getFormData() {
+    return {
+      mission_type: document.getElementById('missionType').value,
+      assigned_to_drone: document.getElementById('missionDrone').value || null,
+      purpose: document.getElementById('missionPurpose').value,
+      agl: Number(document.getElementById('missionAgl').value),
+      speed_mps: Number(document.getElementById('missionSpeed').value),
+      spacing_m: Number(document.getElementById('missionSpacing').value),
+      photo_interval_s: Number(document.getElementById('missionInterval').value),
+      repeat: Number(document.getElementById('missionRepeat').value),
+      payload_type: document.getElementById('missionPayload').value,
+      dispatch_now: document.getElementById('missionDispatchNow').value === 'true',
+    };
+  },
+
+  updateSummary() {
+    const d = this.getFormData();
+
+    const summary = {
+      mission_type: d.mission_type,
+      purpose: d.purpose,
+      assigned_to_drone: d.assigned_to_drone || 'AUTO nearest idle UAV',
+      parameters: {
+        agl_m: d.agl,
+        speed_mps: d.speed_mps,
+        spacing_m: d.spacing_m,
+        photo_interval_s: d.photo_interval_s,
+        repeat: d.repeat,
+      },
+      payload: {
+        type: d.payload_type,
+      },
+      dispatch_now: d.dispatch_now,
+    };
+
+    const el = document.getElementById('missionSummary');
+    if (el) el.textContent = JSON.stringify(summary, null, 2);
+  },
+
+  /* async confirm() {
+    const btn = document.getElementById('missionConfirmBtn');
+    btn.disabled = true;
+
+    try {
+      const incident = this.activeIncident;
+      if (!incident?.id) throw new Error('No active incident selected.');
+
+      const form = this.getFormData();
+
+      let assignedDrone = form.assigned_to_drone;
+      let autoPickInfo = null;
+
+      if (!assignedDrone) {
+        const choice = await pickNearestIdleClient(this.activeListEl, incident);
+        if (!choice) {
+          throw new Error('No suitable idle UAV found.');
+        }
+
+        assignedDrone = choice.cid;
+        autoPickInfo = {
+          dist_km: choice.dist_km,
+        };
+      }
+
+      let polygon = extractIncidentPolygon(incident);
+      const centroid = extractIncidentLL(incident);
+
+      // polygon = [
+        // [ 120.820153, 14.722761],
+        // [ 120.806110, 14.710494 ],
+        // [ 120.840537, 14.718380],
+        // [ 120.833289, 14.731086 ],
+        // [120.820153, 14.722761]
+      // ]; 
+
+      console.log('override polygon:', polygon);
+
+      const missionPayload = {
+        incident_id: incident.id,
+        purpose: form.purpose,
+        tier_level: incident.tier_level || incident.tier || null,
+        assigned_to: assignedDrone,
+        mission_type: form.mission_type,
+        status: form.dispatch_now ? 'assigned' : 'planned',
+
+        route: {
+          polygon: polygon
+        },
+
+
+        waypoint: {
+          centroid: centroid
+        },
+
+        payload: {
+          type: form.payload_type,
+          dispatch_now: form.dispatch_now,
+          parameters: {
+            agl_m: form.agl,
+            speed_mps: form.speed_mps,
+            spacing_m: form.spacing_m,
+            photo_interval_s: form.photo_interval_s,
+            repeat: form.repeat
+          }
+        }
+      };
+
+      const saved = await MissionsAPI.createMission(missionPayload);
+
+      if (form.dispatch_now) {
+        await ctrlOps.runMission(
+          assignedDrone,
+          form.mission_type,
+          polygon,
+          {
+            agl: form.agl,
+            speed_mps: form.speed_mps,
+            spacing_m: form.spacing_m,
+            photo_interval_s: form.photo_interval_s,
+            repeat: form.repeat,
+          }
+        );
+
+        await MissionsAPI.updateMissionStatus(saved.mission.id, 'dispatched');
+      }
+
+      this.close();
+
+      // await refreshList();
+      await IncidentsUI.openIncident(incident.id);
+
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      btn.disabled = false;
+    }
+  } */
+
+  
+
+  async confirm() {
+    const btn = document.getElementById('missionConfirmBtn');
+    btn.disabled = true;
+    btn.textContent = 'Dispatching...';
+    
+    try {
+      const incident = this.activeIncident;
+      if (!incident?.id) throw new Error('No active incident selected.');
+
+      const form = this.getFormData();
+
+      let assignedDrone = form.assigned_to_drone;
+      let autoPickInfo = null;
+      let distKm = 0;
+
+      if (!assignedDrone) {
+        const choice = await pickNearestIdleClient(this.activeListEl, incident);
+        if (!choice) {
+          throw new Error('No suitable idle UAV found.');
+        }
+
+        assignedDrone = choice.cid;
+        distKm = Number(choice.dist_km || 0);
+
+        autoPickInfo = {
+          dist_km: distKm,
+        };
+      } else {
+        // Try to compute distance for manually selected drone
+        try {
+          const choice = await pickNearestIdleClient(this.activeListEl, incident);
+          if (choice?.cid === assignedDrone) {
+            distKm = Number(choice.dist_km || 0);
+          }
+        } catch {}
+      }
+
+      let polygon = extractIncidentPolygon(incident);
+      const centroid = extractIncidentLL(incident);
+
+      if (!polygon || polygon.length < 4) {
+        throw new Error('No valid incident polygon found.');
+      }
+
+      console.log('mission polygon:', polygon);
+
+      const feasibility = estimateMissionFeasibility({
+        dist_km: distKm,
+        polygon,
+        speed_mps: form.speed_mps,
+        repeat: form.repeat,
+        settle_s: form.photo_interval_s || 1,
+        maxDistanceKm: 100,
+        maxMissionMinutes: 1000,
+      });
+
+      if (!feasibility.ok) {
+        throw new Error(feasibility.reason);
+      }
+
+      const missionPayload = {
+        incident_id: incident.id,
+        purpose: form.purpose,
+        tier_level: incident.tier_level || incident.tier || null,
+        assigned_to: assignedDrone,
+        mission_type: form.mission_type,
+        status: form.dispatch_now ? 'assigned' : 'planned',
+
+        route: {
+          polygon: polygon,
+          auto_pick: autoPickInfo,
+          feasibility,
+        },
+
+        waypoint: {
+          centroid: centroid,
+        },
+
+        payload: {
+          type: form.payload_type,
+          dispatch_now: form.dispatch_now,
+          auto_rtl: true,
+          parameters: {
+            agl_m: form.agl,
+            speed_mps: form.speed_mps,
+            spacing_m: form.spacing_m,
+            photo_interval_s: form.photo_interval_s,
+            repeat: form.repeat,
+          },
+        },
+      };
+
+      const saved = await MissionsAPI.createMission(missionPayload);
+
+      const missionId = saved?.mission?.id;
+      if (!missionId) {
+        throw new Error('Mission was created but no mission ID was returned.');
+      }
+
+      if (form.dispatch_now) {
+        const lifecycleArgs = {
+          missionId,
+          incidentId: incident.id,
+          clientId: assignedDrone,
+          missionType: form.mission_type,
+          polygon,
+          agl: form.agl,
+          speed_mps: form.speed_mps,
+          repeat: form.repeat,
+          photo_interval_s: form.photo_interval_s,
+          dist_km: distKm,
+          arrivalMode:
+            form.mission_type === MISSION_TYPES.VERIFY_EDGE_MAP ||
+            form.mission_type === MISSION_TYPES.EDGE_TRACKING
+              ? 'edge'
+              : 'centroid',
+          centroid,
+          waitLanding: true,
+        };
+
+        executeMissionWithLifecycle(lifecycleArgs)
+          .then(() => console.log('[mission lifecycle] completed', missionId))
+          .catch(e => {
+            console.error('[mission lifecycle] failed', e);
+            alert(`Mission failed or became uncertain: ${e.message || e}`);
+          });
+      }
+
+      this.close();
+      await IncidentsUI.openIncident(incident.id);
+
+    } catch (e) {
+      alert(e.message || String(e));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Confirm Mission';
+    }
+  }
+};
 
 // Hook into your tab system — runs when Incidents tab is shown
 (function wireTabs() {
@@ -2628,8 +4275,8 @@ function renderResponsePlanBox(resp) {
 
       const meta = {
         model_name: modelId,
-        model_version: 'ui',                 // or from your pipeline
-        image_id: j.image_id || null,        // if your /admin/infer returns it
+        model_version: 'ui',                 // or from pipeline
+        image_id: j.image_id || null,        // if /admin/infer returns it
         captured_at: j.captured_at || null,  // if available; otherwise omit
         extra: { aoi_wkt: aoiWkt || null },  // anything useful
       };
@@ -2672,6 +4319,7 @@ window.addEventListener('DOMContentLoaded', () => {
   try {
     //wireTabs();
     initMap().then(() => {
+      MissionUI.init();
       setupAOIUI();
       setupScanUI();
       // WS after map exists
