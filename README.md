@@ -21,6 +21,10 @@ To support environmental protection efforts by enabling rapid, accurate detectio
 - Response planning and UAV tasking controls
 - Live video monitoring and telemetry panels via WebRTC
 
+## Demonstration Video
+Simulated Oil Spill detection and UAV response - Manila Bay, July 2024: https://youtu.be/RU1CvAIvZrg
+
+
 ### Model Overview
 - Trained on Sentinel-1 SAR dataset from Zenodo consisting of oil spills, look alikes and images without oil spills
   
