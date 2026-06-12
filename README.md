@@ -407,6 +407,10 @@ Learn more at: https://step.esa.int/main/toolboxes/snap/
 ``
 
 
+## License
+This project is licensed under the Apache License 2.0
+
+
 ## Contact
 
 Joppet Karlo Quinones – <joppetk_q@yahoo.com> – feel free to reach out!  
