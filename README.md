@@ -7,6 +7,14 @@
   
 </p>
 
+## 🚀 Overview
+This project presents an end-to-end system for oil spill detection and response using Sentinel-1 SAR imagery, deep learning, and UAV integration.
+
+It combines:
+- Automated satellite data acquisition
+- AI-based segmentation models (U-Net, DeepLabV3)
+- Real-time monitoring and simulated UAV deployment
+
 ## ✨ Main Objective  
 
 To support environmental protection efforts by enabling rapid, accurate detection and mitigation of marine oil spills through an integrated, technology‑driven response system.
